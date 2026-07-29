@@ -1,0 +1,62 @@
+# Milestone 17 — SMS Development Outbox
+
+- **Status:** Not started
+- **Objective:** Create `packages/sms` with the `SmsAdapter` interface and a `DevOutboxAdapter`, plus an SMS queue worker that processes queued messages with retries.
+- **Dependencies:** 02 (Shared types and validation), 03 (SQLite schema and migrations)
+
+## Included work
+- `packages/sms` with `SmsAdapter` interface: `sendSms({to, body}): Promise<{messageId, status}>`.
+- `DevOutboxAdapter`: writes messages to the `sms_message` table and/or a local outbox file for development and demo mode.
+- SMS queue worker in `local-server`: reads `sms_message` rows with status `PENDING`/`RETRYING`, attempts send, updates status (`SENDING → SENT | FAILED → RETRYING → PERMANENTLY_FAILED`), records `attempts`, `last_error`, `sent_at`, `next_retry_at`.
+- At check-in, queue `SMS_QUEUED` events and `sms_message` rows for Parent 1 and Parent 2 (if valid and different).
+- SMS status tracking and admin API to list/retry failed messages.
+- SMS-cost warnings in the UI (segment count estimate).
+- Configurable message templates preserving required safety information.
+- Unit and integration tests.
+
+## Explicitly excluded work
+- No real SMS provider (deferred to M29).
+- No encrypted credential storage for real providers (deferred to M29).
+- No desktop SMS status UI (deferred to a later milestone; API exists here).
+
+## Expected files or directories
+- `packages/sms/package.json`
+- `packages/sms/src/index.ts`
+- `packages/sms/src/adapter.ts`
+- `packages/sms/src/dev-outbox.ts`
+- `packages/sms/src/__tests__/dev-outbox.test.ts`
+- `apps/local-server/src/sms/queue-worker.ts`
+- `apps/local-server/src/sms/templates.ts`
+- `apps/local-server/src/routes/sms.ts`
+- `apps/local-server/src/__tests__/sms-queue.test.ts`
+
+## Acceptance criteria
+- The `SmsAdapter` interface is defined and `DevOutboxAdapter` implements it.
+- Check-in queues SMS rows for Parent 1 and Parent 2 (when different).
+- The queue worker processes pending messages and updates status.
+- Failed messages retry with backoff and can be permanently failed.
+- Staff can list and retry failed messages via the API.
+- Check-in succeeds even when SMS fails.
+- `npm run typecheck` and `npm run test` pass.
+
+## Required automated tests
+- Parent 1 SMS queued.
+- Parent 2 SMS queued when valid and different.
+- Duplicate parent phone normalization (one SMS).
+- Missing Parent 2 phone (one SMS).
+- Failed SMS retry.
+- Permanently failed status.
+- Queue worker status transitions.
+
+## Manual verification steps
+1. Check in a student with two distinct parent phones.
+2. Confirm two `sms_message` rows are created and processed by the dev outbox.
+3. Simulate a failure and confirm retry, then permanent failure.
+
+## Completion checklist
+- [ ] `SmsAdapter` interface and `DevOutboxAdapter`
+- [ ] SMS queue worker with retries
+- [ ] Check-in queues SMS for both parents
+- [ ] SMS status tracking and retry API
+- [ ] Message templates
+- [ ] Tests pass

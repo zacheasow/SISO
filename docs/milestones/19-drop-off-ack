@@ -1,0 +1,63 @@
+# Milestone 19 — Drop-off Acknowledgment
+
+- **Status:** Not started
+- **Objective:** Add the parent drop-off acknowledgment page and `DROPOFF_ACKNOWLEDGED` event, with link-preview safety and first-valid-wins semantics.
+- **Dependencies:** 18 (Secure parent session)
+
+## Included work
+- Parent-facing drop-off acknowledgment page: minimal JS, mobile-friendly, accessible, no account/email/parent name required.
+- Page displays center name, student name, class, time in, and the statement: "I acknowledge that this student was dropped off and checked into the center at the displayed time."
+- **"Acknowledge drop-off"** button with explicit confirmation dialog.
+- `POST /ack` endpoint: validates token, records `DROPOFF_ACKNOWLEDGED` event, updates session status/timestamp/masked phone ref.
+- `GET` requests never complete actions; link-preview bots and known crawler user-agents receive a no-op safe page.
+- First valid acknowledgment wins; the other parent's link shows "already acknowledged."
+- Expired/completed links show a clear explanation.
+- CSRF and replay protection.
+- SMS link inclusion in the check-in SMS template (local link in local-only mode).
+- Unit and integration tests.
+
+## Explicitly excluded work
+- No pickup acknowledgment page (deferred to M20).
+- No remote relay (deferred to M30).
+- No real SMS sending (deferred to M29); dev outbox includes the link.
+
+## Expected files or directories
+- `apps/local-server/src/parent/dropoff-page.ts`
+- `apps/local-server/src/routes/ack.ts`
+- `apps/local-server/src/parent/link-preview.ts`
+- `apps/local-server/src/__tests__/dropoff-ack.test.ts`
+- `apps/local-server/src/__tests__/link-preview.test.ts`
+
+## Acceptance criteria
+- The drop-off page loads quickly with minimal JS and is mobile-friendly.
+- Pressing "Acknowledge drop-off" with confirmation records the event.
+- Merely opening the link does not count as acknowledgment.
+- GET never completes the action.
+- Link-preview bots receive a no-op page.
+- First valid acknowledgment wins; the second link shows "already acknowledged."
+- Expired/completed links show a clear explanation.
+- The drop-off acknowledgment time appears separately from Student time in.
+- `npm run typecheck` and `npm run test` pass.
+
+## Required automated tests
+- Drop-off acknowledgment success.
+- Duplicate drop-off acknowledgment rejected (first wins).
+- Expired token rejected.
+- Reused token rejected.
+- Revoked token rejected.
+- Link-preview bot no-op.
+- GET does not complete action.
+
+## Manual verification steps
+1. Check in a student and open the drop-off link from the dev outbox SMS.
+2. Press "Acknowledge drop-off" and confirm.
+3. Open the second parent's link and confirm it shows "already acknowledged."
+
+## Completion checklist
+- [ ] Drop-off acknowledgment page
+- [ ] POST /ack with token validation
+- [ ] First-valid-wins semantics
+- [ ] GET never acts; link-preview safe
+- [ ] Expired/completed link messaging
+- [ ] SMS link inclusion
+- [ ] Tests pass

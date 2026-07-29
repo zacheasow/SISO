@@ -1,0 +1,63 @@
+# Milestone 24 — Attendance Reports
+
+- **Status:** Not started
+- **Objective:** Add reports, filters, CSV export, and two-year retention checks so staff can review and export attendance history.
+- **Dependencies:** 21 (Student time out)
+
+## Included work
+- Reports: daily report, date-range report, student history, class history, current attendance, missing checkout report, override report, SMS-failure report.
+- Report columns: Student ID, student name, class, date, time in, drop-off ack status/time, pickup ack status/time, time out, total duration, override status, override reason.
+- Duration = `student_time_out − student_time_in` (never pickup ack time).
+- Filters: student, class, date range, missing drop-off ack, missing pickup ack, missing time out, drop-off overrides, pickup overrides, currently checked-in, completed sessions.
+- CSV export and daily CSV export.
+- SQLite backup export entry point (actual backup logic deferred to M31).
+- Two-year retention check (warn if older records would be purged; no automatic purge in this milestone).
+- Desktop admin reports screen with filter UI and export buttons.
+- PIN protection for exports.
+- Unit and integration tests.
+
+## Explicitly excluded work
+- No automatic data purging (retention check only).
+- No PDF reports (CSV only here).
+- No backup/restore logic (deferred to M31).
+
+## Expected files or directories
+- `apps/local-server/src/reports/queries.ts`
+- `apps/local-server/src/reports/csv-export.ts`
+- `apps/local-server/src/routes/reports.ts`
+- `apps/local-server/src/__tests__/reports.test.ts`
+- `apps/desktop-admin/src/screens/reports.ts`
+- `apps/desktop-admin/src/__tests__/reports.test.ts`
+
+## Acceptance criteria
+- All report types produce correct results.
+- Duration is calculated as time out minus time in.
+- Filters work for all documented criteria.
+- CSV export produces valid CSV with masked phones.
+- Two-year retention check warns about old records.
+- Exports require PIN.
+- `npm run typecheck` and `npm run test` pass.
+
+## Required automated tests
+- Two-year attendance report.
+- Daily report.
+- Missing checkout report.
+- Override report.
+- SMS-failure report.
+- CSV export correctness.
+- Filter combinations.
+- Duration calculation (never uses pickup ack time).
+
+## Manual verification steps
+1. Generate attendance data spanning multiple days.
+2. Open the reports screen, apply filters, and export a daily CSV.
+3. Confirm the CSV opens in a spreadsheet and phones are masked.
+
+## Completion checklist
+- [ ] All report types
+- [ ] Filters
+- [ ] CSV export (masked phones)
+- [ ] Two-year retention check
+- [ ] Desktop reports screen
+- [ ] PIN protection for exports
+- [ ] Tests pass
