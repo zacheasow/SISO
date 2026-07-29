@@ -1,0 +1,25 @@
+{
+  "name": "kumon-siso",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local-first student check-in, drop-off acknowledgment, parent pickup, and checkout system",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace=packages/shared",
+    "build:packages": "npm run build:shared && npm run build --workspace=packages/database && npm run build --workspace=packages/import && npm run build --workspace=packages/qr && npm run build --workspace=packages/sms-adapters && npm run build --workspace=packages/sync",
+    "build": "npm run build:packages && npm run build --workspace=apps/local-server && npm run build --workspace=apps/check-in-pwa && npm run build --workspace=apps/desktop-admin && npm run build --workspace=apps/optional-parent-relay",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start:server": "npm run start --workspace=apps/local-server",
+    "dev:server": "npm run dev --workspace=apps/local-server",
+    "dev:pwa": "npm run dev --workspace=apps/check-in-pwa",
+    "dev:admin": "npm run dev --workspace=apps/desktop-admin"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2"
+  }
+}

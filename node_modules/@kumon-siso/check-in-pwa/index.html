@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Kumon SISO - Student Check-In & Pickup</title>
+  <link rel="stylesheet" href="/src/style.css" />
+  <meta name="theme-color" content="#1E40AF" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header / Navbar -->
+    <header class="navbar">
+      <div class="brand">
+        <span class="logo-icon">✓</span>
+        <h1 id="center-title">Community Learning Center</h1>
+      </div>
+      <div class="nav-actions">
+        <button id="btn-sync" class="btn btn-secondary nav-btn">
+          <span class="icon">🔄</span>
+          <span id="sync-text">Sync (0)</span>
+        </button>
+        <button id="btn-mode-toggle" class="btn btn-primary nav-btn">
+          <span id="mode-label">Staff Checkout</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main View Container -->
+    <main class="container">
+      <!-- CHECK-IN VIEW -->
+      <section id="view-checkin" class="view active">
+        <div class="scan-card">
+          <h2 class="card-title">Student Check-In</h2>
+          <p class="subtitle">Scan Student QR Card or Search by Name / ID</p>
+
+          <!-- Camera Viewport / Target -->
+          <div class="scanner-container">
+            <video id="video-preview" class="video-preview" playsinline></video>
+            <div class="scan-overlay">
+              <div class="target-box"></div>
+              <p class="overlay-hint">Position QR Code inside box</p>
+            </div>
+          </div>
+
+          <!-- Manual Search Input -->
+          <div class="search-box">
+            <input type="text" id="input-search" placeholder="Type student name or ID..." autocomplete="off" />
+            <button id="btn-search" class="btn btn-primary">Search</button>
+          </div>
+
+          <!-- Search Results Dropdown -->
+          <div id="search-results" class="results-list hidden"></div>
+        </div>
+      </section>
+
+      <!-- CHECK-IN SUCCESS MODAL / OVERLAY -->
+      <div id="modal-success" class="modal hidden">
+        <div class="modal-content success-card">
+          <div class="status-badge success-badge">✓</div>
+          <h2 id="success-student-name">Student Name</h2>
+          <p id="success-class-name" class="class-tag">Math Tutoring</p>
+          <div class="time-in-box">
+            <span>Time In:</span>
+            <strong id="success-time-in">3:30 PM</strong>
+          </div>
+          <p id="success-sms-status" class="sms-note">📱 Parent SMS Queued</p>
+          <div class="countdown-bar">Returning to scan in <span id="countdown-num">3</span>s...</div>
+        </div>
+      </div>
+
+      <!-- ERROR / OVERRIDE MODAL -->
+      <div id="modal-error" class="modal hidden">
+        <div class="modal-content error-card">
+          <div class="status-badge error-badge">⚠️</div>
+          <h2 id="error-title">Check-in Issue</h2>
+          <p id="error-message">No active class scheduled right now.</p>
+          <div id="override-form" class="override-form">
+            <label for="override-pin">Staff PIN Required:</label>
+            <input type="password" id="override-pin" maxlength="8" placeholder="Enter Staff PIN" />
+            <label for="override-reason">Reason for Override:</label>
+            <input type="text" id="override-reason" placeholder="e.g. Schedule adjustment" />
+            <div class="modal-actions">
+              <button id="btn-cancel-override" class="btn btn-secondary">Cancel</button>
+              <button id="btn-confirm-override" class="btn btn-danger">Confirm Override</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STAFF CHECKOUT VIEW -->
+      <section id="view-checkout" class="view hidden">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2>Currently Checked-In Students</h2>
+            <button id="btn-refresh-checkout" class="btn btn-secondary">Refresh</button>
+          </div>
+
+          <div id="checkedin-list" class="student-grid">
+            <!-- Checked in items rendered dynamically -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer / Status Bar -->
+    <footer class="footer">
+      <div class="status-indicator">
+        <span id="net-dot" class="dot dot-online"></span>
+        <span id="net-status">Local Server Connected</span>
+      </div>
+      <div class="device-id-label">Device: <span id="device-name-display">Tablet Checkin</span></div>
+    </footer>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
