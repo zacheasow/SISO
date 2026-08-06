@@ -28,23 +28,36 @@ if not exist "packages\shared\dist\" (
     call npm run build
 )
 
-:: Start local server in background window
-echo [INFO] Starting Kumon SISO Local Server...
-start "Kumon SISO Server" /min cmd /c "npm run start:server"
+:: Start local server in background window (bind to IPv4 explicitly)
+echo [INFO] Starting Kumon SISO Local Server on 127.0.0.1:3000...
+start "Kumon SISO Server" /min cmd /c "set HOST=127.0.0.1 && npm run start:server"
 
-:: Start desktop admin UI
-start "" "http://localhost:3000/api/health"
-timeout /t 2 /nobreak >nul
+:: Wait for server to become ready before opening browser
+echo [INFO] Waiting for server to start...
+set RETRIES=0
+:wait_loop
+if %RETRIES% GEQ 15 (
+    echo [WARN] Server did not respond in time. Opening browser anyway...
+    goto open_browser
+)
+curl -s -o nul http://127.0.0.1:3000/api/health >nul 2>nul
+if %errorlevel% equ 0 (
+    echo [INFO] Server is ready!
+    goto open_browser
+)
+set /a RETRIES+=1
+timeout /t 1 /nobreak >nul
+goto wait_loop
 
-:: Open Desktop Admin and Check-In PWA in default browser
+:open_browser
 echo [INFO] Opening Desktop Admin Console...
-start "" "http://localhost:5174"
-start "" "http://localhost:5173"
+start "" "http://127.0.0.1:5174"
+start "" "http://127.0.0.1:5173"
 
 echo.
 echo ===================================================
 echo   Kumon SISO is now running!
-echo   Desktop Admin: http://localhost:5174
-echo   Check-In PWA:  http://localhost:5173
+echo   Desktop Admin: http://127.0.0.1:5174
+echo   Check-In PWA:  http://127.0.0.1:5173
 echo ===================================================
 echo.

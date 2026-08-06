@@ -23,3 +23,4 @@ __exportStar(require("./dao/attendanceDao.js"), exports);
 __exportStar(require("./dao/deviceDao.js"), exports);
 __exportStar(require("./dao/smsDao.js"), exports);
 __exportStar(require("./dao/auditDao.js"), exports);
+__exportStar(require("./dao/configDao.js"), exports);

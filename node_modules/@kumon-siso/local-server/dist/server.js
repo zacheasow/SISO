@@ -13,6 +13,7 @@ const sms_adapters_1 = require("@kumon-siso/sms-adapters");
 const shared_1 = require("@kumon-siso/shared");
 const qr_1 = require("@kumon-siso/qr");
 const import_1 = require("@kumon-siso/import");
+const tunnelManager_js_1 = require("./services/tunnelManager.js");
 const papaparse_1 = __importDefault(require("papaparse"));
 async function createServer(dbPath = './data/kumon_siso.sqlite') {
     const fastify = (0, fastify_1.default)({ logger: true });
@@ -25,9 +26,34 @@ async function createServer(dbPath = './data/kumon_siso.sqlite') {
     const deviceDao = new database_1.DeviceDao(db);
     const smsDao = new database_1.SmsDao(db);
     const auditDao = new database_1.AuditDao(db);
+    const configDao = new database_1.ConfigDao(db);
     const backupService = new database_1.BackupService(db, dbPath);
     const syncEngine = new sync_1.SyncEngine(db);
-    const smsAdapter = new sms_adapters_1.DevOutboxAdapter('./sms_outbox');
+    const tunnelManager = new tunnelManager_js_1.TunnelManager(configDao, 3000);
+    // Security Scoping Hook: Block administrative endpoints over public tunnel domain
+    fastify.addHook('onRequest', async (request, reply) => {
+        const host = request.headers.host || '';
+        const cfHost = request.headers['x-forwarded-host'] || '';
+        const isPublicTunnel = host.includes('trycloudflare.com') || cfHost.includes('trycloudflare.com');
+        if (isPublicTunnel) {
+            const url = request.url;
+            const isPublicRoute = url.startsWith('/parent') ||
+                url.startsWith('/api/parent') ||
+                url.startsWith('/api/health') ||
+                url.startsWith('/sw.js');
+            if (!isPublicRoute) {
+                reply.status(403).send({
+                    error: 'Forbidden',
+                    message: 'Administrative endpoints cannot be accessed over public Cloudflare quick tunnel.',
+                });
+            }
+        }
+    });
+    // Auto-boot Cloudflare Quick Tunnel if enabled in config
+    const sysConfig = await configDao.getConfig();
+    if (sysConfig.cloudflare_tunnel_enabled) {
+        tunnelManager.start().catch((err) => console.warn('Tunnel boot error:', err));
+    }
     // Register Static Assets for PWA and Admin client web builds
     const pwaDistPath = node_path_1.default.join(process.cwd(), 'apps/check-in-pwa/dist');
     const adminDistPath = node_path_1.default.join(process.cwd(), 'apps/desktop-admin/dist');
@@ -253,10 +279,40 @@ async function createServer(dbPath = './data/kumon_siso.sqlite') {
         const packagePath = await backupService.exportTransferPackage('./export_packages');
         return { success: true, packagePath };
     });
+    // System Config & Notifications REST API
+    fastify.get('/api/config', async () => {
+        const config = await configDao.getConfig();
+        const liveUrl = tunnelManager.getCurrentUrl();
+        if (liveUrl) {
+            config.cloudflare_tunnel_url = liveUrl;
+        }
+        return config;
+    });
+    fastify.post('/api/config', async (request) => {
+        const body = request.body || {};
+        const updated = await configDao.updateConfig(body);
+        // Handle Cloudflare Tunnel toggle dynamically
+        if (body.cloudflare_tunnel_enabled === true) {
+            await tunnelManager.start();
+        }
+        else if (body.cloudflare_tunnel_enabled === false) {
+            tunnelManager.stop();
+            await configDao.setValue('cloudflare_tunnel_url', '');
+        }
+        await auditDao.log('CONFIG_UPDATED', 'DESKTOP_ADMIN', { provider: updated.notification_provider, tunnel: updated.cloudflare_tunnel_enabled });
+        return configDao.getConfig();
+    });
+    fastify.post('/api/config/test-notification', async (request) => {
+        const { recipient, message } = request.body || {};
+        const currentConfig = await configDao.getConfig();
+        const dispatcher = new sms_adapters_1.NotificationDispatcher(currentConfig, './sms_outbox');
+        const result = await dispatcher.sendSms(recipient || '+15551234567', message || 'Test alert from Kumon SISO');
+        return result;
+    });
     // Diagnostics & Redacted Log Export
     fastify.get('/api/diagnostics/logs', async () => {
         const logs = await auditDao.getRecentLogs(100);
         return logs;
     });
-    return { fastify, db, centerDao, studentDao, attendanceDao, deviceDao, smsDao, auditDao };
+    return { fastify, db, centerDao, studentDao, attendanceDao, deviceDao, smsDao, auditDao, configDao, tunnelManager };
 }

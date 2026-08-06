@@ -1,1 +1,1 @@
-{"root":["./src/devoutboxadapter.ts","./src/index.ts","./src/interface.ts","./src/notificationdispatcher.ts","./src/telegramadapter.ts","./src/twilioadapter.ts","./src/webpushadapter.ts"],"version":"5.9.3"}
+{"root":["./src/devoutboxadapter.ts","./src/index.ts","./src/interface.ts","./src/notificationdispatcher.ts","./src/twilioadapter.ts","./src/webpushadapter.ts"],"version":"5.9.3"}

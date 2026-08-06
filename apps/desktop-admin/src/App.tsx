@@ -19,11 +19,6 @@ export function App() {
     vapid_public_key: '',
     vapid_private_key: '',
     vapid_subject: 'mailto:admin@kumon-siso.local',
-    telegram_bot_token: '',
-    telegram_chat_id: '',
-    twilio_account_sid: '',
-    twilio_auth_token: '',
-    twilio_from_number: '',
   });
 
   // Onboarding Wizard Form State
@@ -116,7 +111,7 @@ export function App() {
       const res = await fetch(`${API_BASE}/api/config/test-notification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipient: sysConfig.telegram_chat_id || '+15551234567', message: 'Test Notification from Kumon SISO' }),
+        body: JSON.stringify({ recipient: '+15551234567', message: 'Test Web Push Notification from Kumon SISO' }),
       });
       const data = await res.json();
       if (data.success) {
@@ -495,10 +490,10 @@ export function App() {
 
             {/* NOTIFICATION PROVIDER SELECTOR */}
             <div className="table-container" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-              <h2>📱 Parent Notification Provider Gateway</h2>
-              <p style={{ margin: '0.5rem 0 1rem 0', color: '#64748b' }}>Select your primary notification channel for parent alerts.</p>
+              <h2>📱 PWA Web Push Notifications</h2>
+              <p style={{ margin: '0.5rem 0 1rem 0', color: '#64748b' }}>Zero-cost lock-screen push notifications for parents via the PWA interface.</p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div
                   style={{
                     border: sysConfig.notification_provider === 'WEB_PUSH' ? '2px solid #1e40af' : '1px solid #cbd5e1',
@@ -509,36 +504,8 @@ export function App() {
                   }}
                   onClick={() => setSysConfig({ ...sysConfig, notification_provider: 'WEB_PUSH' })}
                 >
-                  <h3>🔔 Web Push (VAPID / PWA)</h3>
-                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>Zero-cost lock-screen notifications for iOS & Android.</p>
-                </div>
-
-                <div
-                  style={{
-                    border: sysConfig.notification_provider === 'TELEGRAM' ? '2px solid #1e40af' : '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    cursor: 'pointer',
-                    background: sysConfig.notification_provider === 'TELEGRAM' ? '#eff6ff' : '#fff',
-                  }}
-                  onClick={() => setSysConfig({ ...sysConfig, notification_provider: 'TELEGRAM' })}
-                >
-                  <h3>✈️ Telegram Bot API</h3>
-                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>Free instant alerts via Telegram Bot.</p>
-                </div>
-
-                <div
-                  style={{
-                    border: sysConfig.notification_provider === 'TWILIO' ? '2px solid #1e40af' : '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    padding: '1rem',
-                    cursor: 'pointer',
-                    background: sysConfig.notification_provider === 'TWILIO' ? '#eff6ff' : '#fff',
-                  }}
-                  onClick={() => setSysConfig({ ...sysConfig, notification_provider: 'TWILIO' })}
-                >
-                  <h3>💬 Twilio SMS</h3>
-                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>Standard SMS carrier messaging.</p>
+                  <h3>🔔 PWA Web Push (VAPID)</h3>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>Zero-cost lock-screen notifications for iOS & Android PWA.</p>
                 </div>
 
                 <div
@@ -552,11 +519,11 @@ export function App() {
                   onClick={() => setSysConfig({ ...sysConfig, notification_provider: 'DEV_OUTBOX' })}
                 >
                   <h3>📁 Local Dev Outbox</h3>
-                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>Writes SMS JSON files locally for testing.</p>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>Writes notification JSON files locally for testing.</p>
                 </div>
               </div>
 
-              {/* CREDENTIAL FIELDS */}
+              {/* VAPID KEY FIELDS */}
               {sysConfig.notification_provider === 'WEB_PUSH' && (
                 <div>
                   <div className="form-group">
@@ -580,61 +547,9 @@ export function App() {
                 </div>
               )}
 
-              {sysConfig.notification_provider === 'TELEGRAM' && (
-                <div>
-                  <div className="form-group">
-                    <label>Telegram Bot Token:</label>
-                    <input
-                      type="text"
-                      value={sysConfig.telegram_bot_token || ''}
-                      onChange={(e) => setSysConfig({ ...sysConfig, telegram_bot_token: e.target.value })}
-                      placeholder="123456789:ABCdef..."
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Default Telegram Chat ID:</label>
-                    <input
-                      type="text"
-                      value={sysConfig.telegram_chat_id || ''}
-                      onChange={(e) => setSysConfig({ ...sysConfig, telegram_chat_id: e.target.value })}
-                      placeholder="-100123456789"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {sysConfig.notification_provider === 'TWILIO' && (
-                <div>
-                  <div className="form-group">
-                    <label>Twilio Account SID:</label>
-                    <input
-                      type="text"
-                      value={sysConfig.twilio_account_sid || ''}
-                      onChange={(e) => setSysConfig({ ...sysConfig, twilio_account_sid: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Twilio Auth Token:</label>
-                    <input
-                      type="password"
-                      value={sysConfig.twilio_auth_token || ''}
-                      onChange={(e) => setSysConfig({ ...sysConfig, twilio_auth_token: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Twilio From Number:</label>
-                    <input
-                      type="text"
-                      value={sysConfig.twilio_from_number || ''}
-                      onChange={(e) => setSysConfig({ ...sysConfig, twilio_from_number: e.target.value })}
-                    />
-                  </div>
-                </div>
-              )}
-
               <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
                 <button className="btn btn-primary" onClick={() => handleSaveConfig(sysConfig)}>Save Provider Config</button>
-                <button className="btn btn-secondary" onClick={handleTestNotification}>🧪 Send Test Notification</button>
+                <button className="btn btn-secondary" onClick={handleTestNotification}>🧪 Send Test Web Push</button>
               </div>
             </div>
           </div>

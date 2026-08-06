@@ -278,13 +278,17 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
     if (fs.existsSync(exportDir)) fs.rmSync(exportDir, { recursive: true, force: true });
   });
 
-  it('36. Dynamic Config DAO & Notification Dispatcher (WebPush / Telegram / Twilio)', async () => {
+  it('36. Dynamic Config DAO & Notification Dispatcher (WebPush / DevOutbox)', async () => {
     const { ConfigDao } = await import('@kumon-siso/database');
-    const { NotificationDispatcher, WebPushAdapter, TelegramAdapter } = await import('@kumon-siso/sms-adapters');
+    const { NotificationDispatcher, WebPushAdapter, DevOutboxAdapter } = await import('@kumon-siso/sms-adapters');
 
     const configDao = new ConfigDao(db);
     let cfg = await configDao.getConfig();
     expect(cfg.notification_provider).toBe('DEV_OUTBOX');
+
+    // Default provider should be DevOutbox
+    const defaultDispatcher = new NotificationDispatcher(cfg, './sms_outbox');
+    expect(defaultDispatcher.getAdapter()).toBeInstanceOf(DevOutboxAdapter);
 
     // Update config to WEB_PUSH
     cfg = await configDao.updateConfig({
@@ -299,14 +303,11 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
     const adapter = dispatcher.getAdapter();
     expect(adapter).toBeInstanceOf(WebPushAdapter);
 
-    // Update config to TELEGRAM
-    cfg = await configDao.updateConfig({
-      notification_provider: 'TELEGRAM',
-      telegram_bot_token: '12345:test_token',
-      telegram_chat_id: '-10012345678',
-    });
-    const telegramDispatcher = new NotificationDispatcher(cfg, './sms_outbox');
-    expect(telegramDispatcher.getAdapter()).toBeInstanceOf(TelegramAdapter);
+    // Switch back to DEV_OUTBOX
+    cfg = await configDao.updateConfig({ notification_provider: 'DEV_OUTBOX' });
+    expect(cfg.notification_provider).toBe('DEV_OUTBOX');
+    const devDispatcher = new NotificationDispatcher(cfg, './sms_outbox');
+    expect(devDispatcher.getAdapter()).toBeInstanceOf(DevOutboxAdapter);
   });
 
   it('37. Public Cloudflare Quick Tunnel Security Scoping (Admin 403 vs Public Allowed)', async () => {

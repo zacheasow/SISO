@@ -157,14 +157,8 @@ export interface SyncResponse {
 export interface SystemConfig {
   cloudflare_tunnel_enabled: boolean;
   cloudflare_tunnel_url?: string;
-  notification_provider: 'WEB_PUSH' | 'DEV_OUTBOX' | 'TWILIO' | 'TELEGRAM';
+  notification_provider: 'WEB_PUSH' | 'DEV_OUTBOX';
   vapid_public_key?: string;
   vapid_private_key?: string;
   vapid_subject?: string;
-  fcm_server_key?: string;
-  telegram_bot_token?: string;
-  telegram_chat_id?: string;
-  twilio_account_sid?: string;
-  twilio_auth_token?: string;
-  twilio_from_number?: string;
 }

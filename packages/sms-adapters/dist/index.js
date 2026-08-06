@@ -18,5 +18,4 @@ __exportStar(require("./interface.js"), exports);
 __exportStar(require("./devOutboxAdapter.js"), exports);
 __exportStar(require("./twilioAdapter.js"), exports);
 __exportStar(require("./webPushAdapter.js"), exports);
-__exportStar(require("./telegramAdapter.js"), exports);
 __exportStar(require("./notificationDispatcher.js"), exports);
