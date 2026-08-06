@@ -45,6 +45,29 @@ export async function createServer(dbPath = './data/kumon_siso.sqlite') {
     };
   });
 
+  fastify.get('/api/network-info', async () => {
+    const os = await import('node:os');
+    const interfaces = os.networkInterfaces();
+    const ips: string[] = [];
+
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name] || []) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          ips.push(iface.address);
+        }
+      }
+    }
+
+    return {
+      local_ips: ips,
+      pwa_port: 5173,
+      admin_port: 5174,
+      server_port: 3000,
+      pwa_urls: ips.map((ip) => `http://${ip}:5173`),
+      admin_urls: ips.map((ip) => `http://${ip}:5174`),
+    };
+  });
+
   // Center Onboarding & Auth API
   fastify.post('/api/onboarding', async (request, reply) => {
     const body: any = request.body;

@@ -31,38 +31,32 @@ That's it. No database servers, no Docker, no cloud accounts.
 
 ---
 
-## Quick Start (Same Computer)
+## 🚀 Zero-Terminal Quick Start (Double-Click Launchers)
 
-```bash
-# 1. Clone or copy the project
-git clone <your-repo-url> kumonSISO
-cd kumonSISO
+Your staff does **not** need to open a terminal or run any commands!
 
-# 2. Install all dependencies
-npm install
+### On Windows
+1. **First Time / Every Day:** Double-click **`Start-KumonSISO-Windows.cmd`** (or **`Start-KumonSISO-Windows.vbs`** for completely silent startup without any pop-up window).
+2. It automatically checks dependencies, starts the background server, and opens **Desktop Admin** and **Check-In PWA** in your default web browser!
 
-# 3. Build all packages
-npm run build
+> **Will Windows Defender / SmartScreen block it?**  
+> No. Scripts created directly on your machine (like `.cmd` or `.vbs`) do not trigger SmartScreen warnings because Windows recognizes them as local user scripts. Only untrusted `.exe` files downloaded from the internet without a digital code-signing certificate trigger SmartScreen prompts.
 
-# 4. Start the local server (runs on port 3000)
-npm run start:server
-```
+### On macOS
+1. Double-click **`Start-KumonSISO-Mac.command`** in Finder.
+2. It will start the server and automatically launch your browser to the app.
 
-Then open **http://localhost:3000** in your browser. The server creates its SQLite database automatically on first run at `./data/kumon_siso.sqlite`.
+---
 
-### Running the Desktop Admin GUI (development mode)
+## 📱 Connecting Tablets (In-App Guide)
 
-```bash
-npm run dev:admin
-# Opens on http://localhost:5174
-```
+No commands needed on tablets either!
 
-### Running the Tablet Check-In PWA (development mode)
-
-```bash
-npm run dev:pwa
-# Opens on http://localhost:5173
-```
+1. Make sure your tablet (iPad, Android, Windows surface) is on the same Wi-Fi as the main computer.
+2. Open the **Desktop Admin** on the main computer and go to **Check-in Tablets & Devices**.
+3. The app will auto-detect your main computer's IP address and display it (e.g. `http://192.168.1.42:5173`).
+4. Type that address into your tablet's browser (Safari/Chrome).
+5. Tap **Share → Add to Home Screen** on iPad, or **Menu (⋮) → Add to Home Screen** on Android for a full-screen kiosk app!
 
 ---
 

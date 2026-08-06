@@ -11,6 +11,7 @@ export function App() {
   const [checkedin, setCheckedin] = useState<any[]>([]);
   const [devices, setDevices] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [networkInfo, setNetworkInfo] = useState<any>(null);
 
   // Onboarding Wizard Form State
   const [wizardStep, setWizardStep] = useState(1);
@@ -49,16 +50,20 @@ export function App() {
 
   const fetchDashboardData = async () => {
     try {
-      const [stRes, histRes, chkRes, logsRes] = await Promise.all([
+      const [stRes, histRes, chkRes, logsRes, netRes] = await Promise.all([
         fetch(`${API_BASE}/api/students`),
         fetch(`${API_BASE}/api/attendance/history`),
         fetch(`${API_BASE}/api/attendance/checked-in`),
         fetch(`${API_BASE}/api/diagnostics/logs`),
+        fetch(`${API_BASE}/api/network-info`).catch(() => null),
       ]);
       setStudents(await stRes.json());
       setHistory(await histRes.json());
       setCheckedin(await chkRes.json());
       setLogs(await logsRes.json());
+      if (netRes && netRes.ok) {
+        setNetworkInfo(await netRes.json());
+      }
     } catch (err) {
       console.error('Dashboard fetch error', err);
     }
@@ -325,12 +330,43 @@ export function App() {
         {activeTab === 'devices' && (
           <div>
             <div className="page-header">
-              <h1 className="page-title">Paired Check-in Devices</h1>
-              <button className="btn btn-primary" onClick={handlePairDevice}>➕ Pair New Tablet Device</button>
+              <h1 className="page-title">Check-in Tablets & Devices</h1>
+              <button className="btn btn-primary" onClick={handlePairDevice}>➕ Generate Device Pairing Code</button>
             </div>
 
-            <div className="table-container" style={{ padding: '1.5rem' }}>
-              <p>Manage authenticated tablet and phone check-in clients connected to this main computer.</p>
+            <div className="table-container" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+              <h2>📱 How to Connect a Tablet or Phone (No Terminal Required)</h2>
+              <p style={{ margin: '0.5rem 0 1rem 0', color: '#64748b' }}>
+                Follow these simple steps to set up check-in tablets (iPad, Android tablet, surface, phone, or laptop) on your center's Wi-Fi network:
+              </p>
+
+              <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+                <h3 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>Step 1: Connect Tablet to Center Wi-Fi</h3>
+                <p>Ensure the tablet/phone is connected to the same Wi-Fi network as this main computer.</p>
+              </div>
+
+              <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+                <h3 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>Step 2: Open Web Browser on Tablet</h3>
+                <p>Open Safari (iPad/iPhone) or Chrome (Android/Windows) on the tablet, and enter this exact address:</p>
+                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {networkInfo?.pwa_urls?.length > 0 ? (
+                    networkInfo.pwa_urls.map((url: string) => (
+                      <div key={url} style={{ background: '#1e40af', color: '#fff', padding: '0.6rem 1rem', borderRadius: '6px', fontSize: '1.1rem', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                        {url}
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ background: '#1e40af', color: '#fff', padding: '0.6rem 1rem', borderRadius: '6px', fontSize: '1.1rem', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                      http://localhost:5173
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '1.25rem' }}>
+                <h3 style={{ marginBottom: '0.5rem', color: '#1e40af' }}>Step 3: Save to Home Screen (Optional)</h3>
+                <p>Tap <strong>Share → Add to Home Screen</strong> on iPad, or <strong>Menu (⋮) → Install App / Add to Home Screen</strong> on Android to turn the tablet into a dedicated full-screen kiosk app!</p>
+              </div>
             </div>
           </div>
         )}
