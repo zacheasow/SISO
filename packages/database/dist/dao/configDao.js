@@ -1,0 +1,92 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ConfigDao = void 0;
+class ConfigDao {
+    db;
+    cache = new Map();
+    constructor(db) {
+        this.db = db;
+    }
+    async getValue(key, defaultValue = '') {
+        if (this.cache.has(key)) {
+            return this.cache.get(key);
+        }
+        const row = await this.db.get('SELECT value FROM system_config WHERE key = ?', [key]);
+        const val = row ? row.value : defaultValue;
+        this.cache.set(key, val);
+        return val;
+    }
+    async setValue(key, value) {
+        this.cache.set(key, value);
+        await this.db.run(`INSERT INTO system_config (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`, [key, value]);
+    }
+    async getConfig() {
+        const cloudflareEnabled = (await this.getValue('cloudflare_tunnel_enabled', '0')) === '1';
+        const cloudflareUrl = await this.getValue('cloudflare_tunnel_url', '');
+        const notificationProvider = (await this.getValue('notification_provider', 'DEV_OUTBOX'));
+        const vapidPublicKey = await this.getValue('vapid_public_key', '');
+        const vapidPrivateKey = await this.getValue('vapid_private_key', '');
+        const vapidSubject = await this.getValue('vapid_subject', 'mailto:admin@kumon-siso.local');
+        const fcmServerKey = await this.getValue('fcm_server_key', '');
+        const telegramBotToken = await this.getValue('telegram_bot_token', '');
+        const telegramChatId = await this.getValue('telegram_chat_id', '');
+        const twilioAccountSid = await this.getValue('twilio_account_sid', '');
+        const twilioAuthToken = await this.getValue('twilio_auth_token', '');
+        const twilioFromNumber = await this.getValue('twilio_from_number', '');
+        return {
+            cloudflare_tunnel_enabled: cloudflareEnabled,
+            cloudflare_tunnel_url: cloudflareUrl,
+            notification_provider: notificationProvider,
+            vapid_public_key: vapidPublicKey,
+            vapid_private_key: vapidPrivateKey,
+            vapid_subject: vapidSubject,
+            fcm_server_key: fcmServerKey,
+            telegram_bot_token: telegramBotToken,
+            telegram_chat_id: telegramChatId,
+            twilio_account_sid: twilioAccountSid,
+            twilio_auth_token: twilioAuthToken,
+            twilio_from_number: twilioFromNumber,
+        };
+    }
+    async updateConfig(partial) {
+        if (partial.cloudflare_tunnel_enabled !== undefined) {
+            await this.setValue('cloudflare_tunnel_enabled', partial.cloudflare_tunnel_enabled ? '1' : '0');
+        }
+        if (partial.cloudflare_tunnel_url !== undefined) {
+            await this.setValue('cloudflare_tunnel_url', partial.cloudflare_tunnel_url);
+        }
+        if (partial.notification_provider !== undefined) {
+            await this.setValue('notification_provider', partial.notification_provider);
+        }
+        if (partial.vapid_public_key !== undefined) {
+            await this.setValue('vapid_public_key', partial.vapid_public_key);
+        }
+        if (partial.vapid_private_key !== undefined) {
+            await this.setValue('vapid_private_key', partial.vapid_private_key);
+        }
+        if (partial.vapid_subject !== undefined) {
+            await this.setValue('vapid_subject', partial.vapid_subject);
+        }
+        if (partial.fcm_server_key !== undefined) {
+            await this.setValue('fcm_server_key', partial.fcm_server_key);
+        }
+        if (partial.telegram_bot_token !== undefined) {
+            await this.setValue('telegram_bot_token', partial.telegram_bot_token);
+        }
+        if (partial.telegram_chat_id !== undefined) {
+            await this.setValue('telegram_chat_id', partial.telegram_chat_id);
+        }
+        if (partial.twilio_account_sid !== undefined) {
+            await this.setValue('twilio_account_sid', partial.twilio_account_sid);
+        }
+        if (partial.twilio_auth_token !== undefined) {
+            await this.setValue('twilio_auth_token', partial.twilio_auth_token);
+        }
+        if (partial.twilio_from_number !== undefined) {
+            await this.setValue('twilio_from_number', partial.twilio_from_number);
+        }
+        return this.getConfig();
+    }
+}
+exports.ConfigDao = ConfigDao;

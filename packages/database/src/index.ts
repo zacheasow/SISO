@@ -7,3 +7,4 @@ export * from './dao/attendanceDao.js';
 export * from './dao/deviceDao.js';
 export * from './dao/smsDao.js';
 export * from './dao/auditDao.js';
+export * from './dao/configDao.js';

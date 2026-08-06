@@ -7,6 +7,18 @@ exports.createRelayServer = createRelayServer;
 const fastify_1 = __importDefault(require("fastify"));
 async function createRelayServer(localServerApiBase = 'http://localhost:3000') {
     const fastify = (0, fastify_1.default)({ logger: true });
+    // Serve Service Worker for Web Push
+    fastify.get('/sw.js', async (request, reply) => {
+        const fs = await import('node:fs');
+        const path = await import('node:path');
+        const swPath = path.join(process.cwd(), 'apps/optional-parent-relay/src/public/sw.js');
+        if (fs.existsSync(swPath)) {
+            reply.type('application/javascript');
+            return reply.send(fs.readFileSync(swPath, 'utf8'));
+        }
+        reply.type('application/javascript');
+        return reply.send('self.addEventListener("push", () => {});');
+    });
     // Parent Acknowledgment HTML Landing Page
     fastify.get('/parent/ack/:token', async (request, reply) => {
         const { token } = request.params;
@@ -17,6 +29,7 @@ async function createRelayServer(localServerApiBase = 'http://localhost:3000') {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Student Drop-off & Pickup Acknowledgment</title>
+      <link rel="manifest" href="data:application/json,{ %22name%22:%22Kumon%20SISO%22,%22short_name%22:%22Kumon%20SISO%22,%22display%22:%22standalone%22,%22start_url%22:%22/%22 }">
       <style>
         body { font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 1.5rem; }
         .card { background: #fff; border-radius: 12px; padding: 2rem; max-width: 480px; margin: 2rem auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
@@ -27,12 +40,17 @@ async function createRelayServer(localServerApiBase = 'http://localhost:3000') {
         .btn-pickup { background: #1e40af; color: #fff; }
         .status-msg { margin-top: 1rem; padding: 0.75rem; border-radius: 6px; display: none; }
         .success { background: #dcfce7; color: #15803d; }
+        .pwa-banner { background: #e0e7ff; color: #3730a3; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem; text-align: left; }
       </style>
     </head>
     <body>
       <div class="card">
         <h1>Community Learning Center</h1>
         <p>Parent Acknowledgment & Student Safety Portal</p>
+
+        <div id="pwa-banner" class="pwa-banner" style="display:none;">
+          💡 <strong>Enable Lock-screen Push Notifications:</strong> Tap <strong>Share → Add to Home Screen</strong> on iPhone to receive lock-screen alerts!
+        </div>
 
         <p>I acknowledge that this student was dropped off & checked into the center, or request physical pickup release below.</p>
 
@@ -46,6 +64,17 @@ async function createRelayServer(localServerApiBase = 'http://localhost:3000') {
         const token = "${token}";
         const apiBase = "${localServerApiBase}";
         const statusDiv = document.getElementById('status');
+
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('/sw.js').then(() => {
+            console.log('Push Service Worker registered');
+          }).catch(console.error);
+        }
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS && !window.navigator.standalone) {
+          document.getElementById('pwa-banner').style.display = 'block';
+        }
 
         document.getElementById('btn-dropoff').onclick = async () => {
           try {

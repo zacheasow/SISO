@@ -277,4 +277,71 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
     if (fs.existsSync(newDbPath)) fs.unlinkSync(newDbPath);
     if (fs.existsSync(exportDir)) fs.rmSync(exportDir, { recursive: true, force: true });
   });
+
+  it('36. Dynamic Config DAO & Notification Dispatcher (WebPush / Telegram / Twilio)', async () => {
+    const { ConfigDao } = await import('@kumon-siso/database');
+    const { NotificationDispatcher, WebPushAdapter, TelegramAdapter } = await import('@kumon-siso/sms-adapters');
+
+    const configDao = new ConfigDao(db);
+    let cfg = await configDao.getConfig();
+    expect(cfg.notification_provider).toBe('DEV_OUTBOX');
+
+    // Update config to WEB_PUSH
+    cfg = await configDao.updateConfig({
+      notification_provider: 'WEB_PUSH',
+      vapid_public_key: 'BEl62i_test_public_key',
+      vapid_private_key: 'test_private_key',
+    });
+    expect(cfg.notification_provider).toBe('WEB_PUSH');
+    expect(cfg.vapid_public_key).toBe('BEl62i_test_public_key');
+
+    const dispatcher = new NotificationDispatcher(cfg, './sms_outbox');
+    const adapter = dispatcher.getAdapter();
+    expect(adapter).toBeInstanceOf(WebPushAdapter);
+
+    // Update config to TELEGRAM
+    cfg = await configDao.updateConfig({
+      notification_provider: 'TELEGRAM',
+      telegram_bot_token: '12345:test_token',
+      telegram_chat_id: '-10012345678',
+    });
+    const telegramDispatcher = new NotificationDispatcher(cfg, './sms_outbox');
+    expect(telegramDispatcher.getAdapter()).toBeInstanceOf(TelegramAdapter);
+  });
+
+  it('37. Public Cloudflare Quick Tunnel Security Scoping (Admin 403 vs Public Allowed)', async () => {
+    const { createServer } = await import('../apps/local-server/src/server.js');
+    const instance = await createServer('./data/test_sec_scoping.sqlite');
+
+    // Test 1: Public Parent Ack endpoint over public trycloudflare.com domain -> Allowed
+    const resPublic = await instance.fastify.inject({
+      method: 'POST',
+      url: '/api/parent/ack-dropoff',
+      headers: { host: 'abcdef-random.trycloudflare.com' },
+      payload: { sessionId: 'test_sess_sec', maskedPhone: 'Parent Web Link' },
+    });
+    expect(resPublic.statusCode).not.toBe(403);
+
+    // Test 2: Sensitive Admin endpoint over public trycloudflare.com domain -> 403 Forbidden
+    const resAdminPublic = await instance.fastify.inject({
+      method: 'GET',
+      url: '/api/students',
+      headers: { host: 'abcdef-random.trycloudflare.com' },
+    });
+    expect(resAdminPublic.statusCode).toBe(403);
+    expect(JSON.parse(resAdminPublic.payload).error).toBe('Forbidden');
+
+    // Test 3: Local Admin request over localhost -> Allowed
+    const resAdminLocal = await instance.fastify.inject({
+      method: 'GET',
+      url: '/api/students',
+      headers: { host: 'localhost:3000' },
+    });
+    expect(resAdminLocal.statusCode).toBe(200);
+
+    await instance.db.close();
+    if (fs.existsSync('./data/test_sec_scoping.sqlite')) {
+      fs.unlinkSync('./data/test_sec_scoping.sqlite');
+    }
+  });
 });

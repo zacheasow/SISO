@@ -51,3 +51,12 @@ export const SMS_STATUS = {
 } as const;
 
 export type SmsStatus = typeof SMS_STATUS[keyof typeof SMS_STATUS];
+
+export const NOTIFICATION_PROVIDERS = {
+  WEB_PUSH: 'WEB_PUSH',
+  DEV_OUTBOX: 'DEV_OUTBOX',
+  TWILIO: 'TWILIO',
+  TELEGRAM: 'TELEGRAM',
+} as const;
+
+export type NotificationProvider = typeof NOTIFICATION_PROVIDERS[keyof typeof NOTIFICATION_PROVIDERS];

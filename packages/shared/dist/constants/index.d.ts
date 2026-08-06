@@ -44,3 +44,10 @@ export declare const SMS_STATUS: {
     readonly PERMANENTLY_FAILED: "PERMANENTLY_FAILED";
 };
 export type SmsStatus = typeof SMS_STATUS[keyof typeof SMS_STATUS];
+export declare const NOTIFICATION_PROVIDERS: {
+    readonly WEB_PUSH: "WEB_PUSH";
+    readonly DEV_OUTBOX: "DEV_OUTBOX";
+    readonly TWILIO: "TWILIO";
+    readonly TELEGRAM: "TELEGRAM";
+};
+export type NotificationProvider = typeof NOTIFICATION_PROVIDERS[keyof typeof NOTIFICATION_PROVIDERS];
