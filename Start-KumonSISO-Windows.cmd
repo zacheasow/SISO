@@ -1,5 +1,5 @@
 @echo off
-title Kumon SISO - Student Check-In & Pickup System
+title "Kumon SISO - Student Check-In & Pickup System"
 cd /d "%~dp0"
 
 echo ===================================================
@@ -28,21 +28,33 @@ if not exist "packages\shared\dist\" (
     call npm run build
 )
 
-:: Start local server in background window (bind to IPv4 explicitly)
+:: Start all three services in background windows
 echo [INFO] Starting Kumon SISO Local Server on 127.0.0.1:3000...
 start "Kumon SISO Server" /min cmd /c "set HOST=127.0.0.1 && npm run start:server"
 
-:: Wait for server to become ready before opening browser
-echo [INFO] Waiting for server to start...
+echo [INFO] Starting Check-In PWA on 127.0.0.1:5173...
+start "Kumon SISO PWA" /min cmd /c "npm run dev:pwa"
+
+echo [INFO] Starting Desktop Admin on 127.0.0.1:5174...
+start "Kumon SISO Admin" /min cmd /c "npm run dev:admin"
+
+:: Wait for all services to become ready before opening browser
+echo [INFO] Waiting for services to start...
 set RETRIES=0
 :wait_loop
-if %RETRIES% GEQ 15 (
-    echo [WARN] Server did not respond in time. Opening browser anyway...
+if %RETRIES% GEQ 30 (
+    echo [WARN] Services did not all respond in time. Opening browser anyway...
     goto open_browser
 )
+set /a READY=0
 curl -s -o nul http://127.0.0.1:3000/api/health >nul 2>nul
-if %errorlevel% equ 0 (
-    echo [INFO] Server is ready!
+if %errorlevel% equ 0 set /a READY+=1
+curl -s -o nul http://127.0.0.1:5173/ >nul 2>nul
+if %errorlevel% equ 0 set /a READY+=1
+curl -s -o nul http://127.0.0.1:5174/ >nul 2>nul
+if %errorlevel% equ 0 set /a READY+=1
+if %READY% equ 3 (
+    echo [INFO] All services are ready!
     goto open_browser
 )
 set /a RETRIES+=1

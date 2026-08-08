@@ -23,10 +23,28 @@ if [ ! -d "packages/shared/dist" ]; then
     npm run build
 fi
 
-echo "[INFO] Starting Kumon SISO Local Server..."
-npm run start:server &
+echo "[INFO] Starting Kumon SISO Local Server on port 3000..."
+HOST=127.0.0.1 npm run start:server &
 
-sleep 2
+echo "[INFO] Starting Check-In PWA on port 5173..."
+npm run dev:pwa &
+
+echo "[INFO] Starting Desktop Admin on port 5174..."
+npm run dev:admin &
+
+echo "[INFO] Waiting for services to start..."
+READY=0
+for i in $(seq 1 30); do
+    READY=0
+    curl -sf http://127.0.0.1:3000/api/health > /dev/null 2>&1 && READY=$((READY + 1))
+    curl -sf http://127.0.0.1:5173/ > /dev/null 2>&1 && READY=$((READY + 1))
+    curl -sf http://127.0.0.1:5174/ > /dev/null 2>&1 && READY=$((READY + 1))
+    if [ "$READY" -eq 3 ]; then
+        echo "[INFO] All services are ready!"
+        break
+    fi
+    sleep 1
+done
 
 echo "[INFO] Opening Desktop Admin in your default browser..."
 open "http://localhost:5174"
