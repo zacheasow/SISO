@@ -20,6 +20,13 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@yao-pkg/pkg": "^5.0.0",
     "typescript": "^5.3.3"
+  },
+  "pkg": {
+    "assets": [
+      "../../node_modules/sqlite3/lib/binding/**/*.node",
+      "../../node_modules/sqlite3/package.json"
+    ]
   }
 }

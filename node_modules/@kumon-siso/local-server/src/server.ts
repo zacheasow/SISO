@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import path from 'node:path';
+import fs from 'node:fs';
 import { Database, CenterDao, StudentDao, AttendanceDao, DeviceDao, SmsDao, AuditDao, ConfigDao, BackupService } from '@kumon-siso/database';
 import { SyncEngine } from '@kumon-siso/sync';
 import { DevOutboxAdapter, NotificationDispatcher } from '@kumon-siso/sms-adapters';
@@ -60,8 +61,31 @@ export async function createServer(dbPath = './data/kumon_siso.sqlite') {
   }
 
   // Register Static Assets for PWA and Admin client web builds
-  const pwaDistPath = path.join(process.cwd(), 'apps/check-in-pwa/dist');
-  const adminDistPath = path.join(process.cwd(), 'apps/desktop-admin/dist');
+  // In sidecar mode, look for PWA assets in the Tauri resources directory.
+  // In dev/standalone mode, look relative to the working directory.
+  const resourceDir = process.env.TAURI_RESOURCE_DIR || '';
+  const pwaDistCandidates = [
+    resourceDir ? path.join(resourceDir, 'check-in-pwa') : '',
+    path.join(process.cwd(), 'apps', 'check-in-pwa', 'dist'),
+    path.resolve(__dirname, '..', '..', 'check-in-pwa', 'dist'),
+  ].filter(Boolean);
+
+  const pwaDistPath = pwaDistCandidates.find(p => fs.existsSync(p)) || '';
+  const adminDistPath = path.join(process.cwd(), 'apps', 'desktop-admin', 'dist');
+
+  // Serve Check-In PWA as static files under /pwa/ so tablets access http://<ip>:3000/pwa/
+  if (pwaDistPath && fs.existsSync(pwaDistPath)) {
+    await fastify.register(fastifyStatic, {
+      root: pwaDistPath,
+      prefix: '/pwa/',
+      decorateReply: true,
+    });
+    // Redirect root to /pwa/ for convenience
+    fastify.get('/', async (_request, reply) => {
+      reply.redirect('/pwa/');
+    });
+    console.log(`[Kumon SISO] Serving Check-In PWA from: ${pwaDistPath}`);
+  }
 
   // API Health & Info
   fastify.get('/api/health', async () => {

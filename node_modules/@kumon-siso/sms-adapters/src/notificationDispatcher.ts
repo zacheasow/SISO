@@ -1,8 +1,6 @@
 import { SmsAdapter, SmsSendResult } from './interface.js';
 import { DevOutboxAdapter } from './devOutboxAdapter.js';
-import { TwilioAdapter } from './twilioAdapter.js';
 import { WebPushAdapter } from './webPushAdapter.js';
-import { TelegramAdapter } from './telegramAdapter.js';
 import { SystemConfig } from '@kumon-siso/shared';
 
 export class NotificationDispatcher implements SmsAdapter {
@@ -17,17 +15,6 @@ export class NotificationDispatcher implements SmsAdapter {
           this.config.vapid_public_key,
           this.config.vapid_private_key,
           this.config.vapid_subject
-        );
-      case 'TELEGRAM':
-        return new TelegramAdapter(
-          this.config.telegram_bot_token,
-          this.config.telegram_chat_id
-        );
-      case 'TWILIO':
-        return new TwilioAdapter(
-          this.config.twilio_account_sid || '',
-          this.config.twilio_auth_token || '',
-          this.config.twilio_from_number || ''
         );
       case 'DEV_OUTBOX':
       default:

@@ -6,7 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createServer = createServer;
 const fastify_1 = __importDefault(require("fastify"));
 const cors_1 = __importDefault(require("@fastify/cors"));
+const static_1 = __importDefault(require("@fastify/static"));
 const node_path_1 = __importDefault(require("node:path"));
+const node_fs_1 = __importDefault(require("node:fs"));
 const database_1 = require("@kumon-siso/database");
 const sync_1 = require("@kumon-siso/sync");
 const sms_adapters_1 = require("@kumon-siso/sms-adapters");
@@ -55,8 +57,26 @@ async function createServer(dbPath = './data/kumon_siso.sqlite') {
         tunnelManager.start().catch((err) => console.warn('Tunnel boot error:', err));
     }
     // Register Static Assets for PWA and Admin client web builds
-    const pwaDistPath = node_path_1.default.join(process.cwd(), 'apps/check-in-pwa/dist');
-    const adminDistPath = node_path_1.default.join(process.cwd(), 'apps/desktop-admin/dist');
+    // In sidecar mode, look for PWA assets in the Tauri resources directory.
+    // In dev/standalone mode, look relative to the working directory.
+    const resourceDir = process.env.TAURI_RESOURCE_DIR || '';
+    const pwaDistCandidates = [
+        resourceDir ? node_path_1.default.join(resourceDir, 'check-in-pwa') : '',
+        node_path_1.default.join(process.cwd(), 'apps', 'check-in-pwa', 'dist'),
+        node_path_1.default.resolve(__dirname, '..', '..', 'check-in-pwa', 'dist'),
+    ].filter(Boolean);
+    const pwaDistPath = pwaDistCandidates.find(p => node_fs_1.default.existsSync(p)) || pwaDistCandidates[1];
+    const adminDistPath = node_path_1.default.join(process.cwd(), 'apps', 'desktop-admin', 'dist');
+    // Serve Check-In PWA as static files so tablets can access http://<ip>:3000/
+    if (node_fs_1.default.existsSync(pwaDistPath)) {
+        await fastify.register(static_1.default, {
+            root: pwaDistPath,
+            prefix: '/',
+            wildcard: false, // Don't catch API routes
+            decorateReply: true,
+        });
+        console.log(`[Kumon SISO] Serving Check-In PWA from: ${pwaDistPath}`);
+    }
     // API Health & Info
     fastify.get('/api/health', async () => {
         const center = await centerDao.getCenterInfo();

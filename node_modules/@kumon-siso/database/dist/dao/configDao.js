@@ -28,12 +28,6 @@ class ConfigDao {
         const vapidPublicKey = await this.getValue('vapid_public_key', '');
         const vapidPrivateKey = await this.getValue('vapid_private_key', '');
         const vapidSubject = await this.getValue('vapid_subject', 'mailto:admin@kumon-siso.local');
-        const fcmServerKey = await this.getValue('fcm_server_key', '');
-        const telegramBotToken = await this.getValue('telegram_bot_token', '');
-        const telegramChatId = await this.getValue('telegram_chat_id', '');
-        const twilioAccountSid = await this.getValue('twilio_account_sid', '');
-        const twilioAuthToken = await this.getValue('twilio_auth_token', '');
-        const twilioFromNumber = await this.getValue('twilio_from_number', '');
         return {
             cloudflare_tunnel_enabled: cloudflareEnabled,
             cloudflare_tunnel_url: cloudflareUrl,
@@ -41,12 +35,6 @@ class ConfigDao {
             vapid_public_key: vapidPublicKey,
             vapid_private_key: vapidPrivateKey,
             vapid_subject: vapidSubject,
-            fcm_server_key: fcmServerKey,
-            telegram_bot_token: telegramBotToken,
-            telegram_chat_id: telegramChatId,
-            twilio_account_sid: twilioAccountSid,
-            twilio_auth_token: twilioAuthToken,
-            twilio_from_number: twilioFromNumber,
         };
     }
     async updateConfig(partial) {
@@ -67,24 +55,6 @@ class ConfigDao {
         }
         if (partial.vapid_subject !== undefined) {
             await this.setValue('vapid_subject', partial.vapid_subject);
-        }
-        if (partial.fcm_server_key !== undefined) {
-            await this.setValue('fcm_server_key', partial.fcm_server_key);
-        }
-        if (partial.telegram_bot_token !== undefined) {
-            await this.setValue('telegram_bot_token', partial.telegram_bot_token);
-        }
-        if (partial.telegram_chat_id !== undefined) {
-            await this.setValue('telegram_chat_id', partial.telegram_chat_id);
-        }
-        if (partial.twilio_account_sid !== undefined) {
-            await this.setValue('twilio_account_sid', partial.twilio_account_sid);
-        }
-        if (partial.twilio_auth_token !== undefined) {
-            await this.setValue('twilio_auth_token', partial.twilio_auth_token);
-        }
-        if (partial.twilio_from_number !== undefined) {
-            await this.setValue('twilio_from_number', partial.twilio_from_number);
         }
         return this.getConfig();
     }

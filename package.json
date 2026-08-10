@@ -16,9 +16,14 @@
     "start:server": "npm run start --workspace=apps/local-server",
     "dev:server": "npm run dev --workspace=apps/local-server",
     "dev:pwa": "npm run dev --workspace=apps/check-in-pwa",
-    "dev:admin": "npm run dev --workspace=apps/desktop-admin"
+    "dev:admin": "npm run dev --workspace=apps/desktop-admin",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "build:sidecar": "node scripts/build-sidecar.js",
+    "tauri:build": "npm run build && npm run build:sidecar && tauri build"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
     "typescript": "^5.3.3",
     "vitest": "^1.2.2"
   }
