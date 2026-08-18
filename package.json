@@ -20,7 +20,8 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "build:sidecar": "node scripts/build-sidecar.js",
-    "tauri:build": "npm run build && npm run build:sidecar && tauri build"
+    "build:app": "npm run tauri:build",
+    "tauri:build": "npm run build && npm run build:sidecar && tauri build && node scripts/copy-release-exe.js"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",

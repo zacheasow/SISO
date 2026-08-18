@@ -3,7 +3,7 @@ import { Database, CenterDao, StudentDao, AttendanceDao, DeviceDao, SmsDao, Audi
 import { SyncEngine } from '@kumon-siso/sync';
 import { parseAndValidateCsv, detectColumnMapping, generateErrorReportCsv } from '@kumon-siso/import';
 import { normalizePhoneNumber, isValidPhoneNumber, maskPhoneNumber, hashPin, verifyPin, EVENT_TYPES, DROPOFF_ACK_STATUS, PICKUP_ACK_STATUS } from '@kumon-siso/shared';
-import { generateQrDataUrl, generateQrCardsPdf } from '@kumon-siso/qr';
+import { generateQrDataUrl } from '@kumon-siso/qr';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -84,7 +84,7 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
     expect(all[0].student_name).toBe('Alex Rivera');
   });
 
-  it('8-9. Automatic QR generation and printable PDF card sheet layout', async () => {
+  it('8-9. Automatic QR generation and client-side PDF card sheet layout', async () => {
     const student = await studentDao.createStudent({
       student_id: '99001',
       student_name: 'Sam Wilson',
@@ -94,10 +94,10 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
     expect(student.qr_identifier).toBeDefined();
     expect(student.qr_identifier.length).toBeGreaterThan(10);
 
-    const pdfBuf = await generateQrCardsPdf([
-      { studentName: student.student_name, studentId: student.student_id, qrIdentifier: student.qr_identifier },
-    ]);
-    expect(pdfBuf.length).toBeGreaterThan(100);
+    // QR data URL generation (PDF generation is now handled client-side via jsPDF)
+    const dataUrl = await generateQrDataUrl(student.qr_identifier);
+    expect(dataUrl).toBeTruthy();
+    expect(dataUrl.startsWith('data:image')).toBe(true);
   });
 
   it('10-15. Tablet check-in, scheduled class matching, sub-second local event queue, and Parent 1 & 2 SMS', async () => {
@@ -213,7 +213,7 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
     expect(history[0].duration_minutes).toBe(95);
   });
 
-  it('29. Staff checkout via PIN-protected override with reason', async () => {
+  it('29. Direct checkout override with optional reason (no PIN required)', async () => {
     const student = await studentDao.createStudent({
       student_id: '10004',
       student_name: 'Morgan Smith',
@@ -229,6 +229,7 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
       deviceId: 'TABLET_01',
     });
 
+    // Override checkout executes immediately — no PIN gate
     await attendanceDao.checkoutStudentWithOverride(
       'sess_400',
       'DESKTOP_ADMIN',
@@ -239,6 +240,24 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
     const session = await attendanceDao.getSessionById('sess_400');
     expect(session?.is_override).toBe(1);
     expect(session?.override_reason).toBe('Parent phone battery died');
+
+    // Also verify direct checkout without override works
+    const student2 = await studentDao.createStudent({
+      student_id: '10005',
+      student_name: 'Casey Jones',
+      parent1_phone: '+15556789012',
+    });
+    await attendanceDao.createCheckinSession({
+      sessionId: 'sess_401',
+      studentId: student2.id,
+      classId: cls.id,
+      timeIn: '2026-07-29T11:00:00.000Z',
+      deviceId: 'TABLET_01',
+    });
+    await attendanceDao.checkoutStudent('sess_401', 'DESKTOP_ADMIN', '2026-07-29T12:30:00.000Z');
+    const session2 = await attendanceDao.getSessionById('sess_401');
+    expect(session2?.student_time_out).toBe('2026-07-29T12:30:00.000Z');
+    expect(session2?.is_override).toBe(0);
   });
 
   it('32-35. Backup creation, transfer package export, and restoration to new computer without distributor help', async () => {
@@ -310,9 +329,24 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
     expect(devDispatcher.getAdapter()).toBeInstanceOf(DevOutboxAdapter);
   });
 
-  it('37. Public Cloudflare Quick Tunnel Security Scoping (Admin 403 vs Public Allowed)', async () => {
+  it('37. Public Cloudflare Quick Tunnel Security Scoping (Admin 403 vs Public Allowed)', { timeout: 15000 }, async () => {
     const { createServer } = await import('../apps/local-server/src/server.js');
     const instance = await createServer('./data/test_sec_scoping.sqlite');
+
+    // Seed a checked-in student so the parent portal has data to return
+    const portalStudent = await instance.studentDao.createStudent({
+      student_id: '10042',
+      student_name: 'Emma Johnson',
+      parent1_phone: '+15551234567',
+    });
+    const portalClass = await instance.studentDao.createClass('Math Tutoring');
+    await instance.attendanceDao.createCheckinSession({
+      sessionId: 'sess_portal_1',
+      studentId: portalStudent.id,
+      classId: portalClass.id,
+      timeIn: new Date().toISOString(),
+      deviceId: 'TABLET_01',
+    });
 
     // Test 1: Public Parent Ack endpoint over public trycloudflare.com domain -> Allowed
     const resPublic = await instance.fastify.inject({
@@ -340,9 +374,128 @@ describe('Kumon SISO - Comprehensive 36-Step Acceptance & Integration Suite', ()
     });
     expect(resAdminLocal.statusCode).toBe(200);
 
+    // Test 4: Parent portal page + assets reachable over the public tunnel
+    const resPortalPage = await instance.fastify.inject({
+      method: 'GET',
+      url: '/parent.html',
+      headers: { host: 'abcdef-random.trycloudflare.com' },
+    });
+    expect(resPortalPage.statusCode).not.toBe(403);
+    const resPortalAsset = await instance.fastify.inject({
+      method: 'GET',
+      url: '/assets/portal-example.js',
+      headers: { host: 'abcdef-random.trycloudflare.com' },
+    });
+    expect(resPortalAsset.statusCode).not.toBe(403);
+
+    // Test 5: Parent portal status lookup over the public tunnel returns the checked-in student
+    const resPortalStudents = await instance.fastify.inject({
+      method: 'GET',
+      url: '/api/parent/students?firstName=Emma&lastName=Johnson',
+      headers: { host: 'abcdef-random.trycloudflare.com' },
+    });
+    expect(resPortalStudents.statusCode).toBe(200);
+    const portalMatches = JSON.parse(resPortalStudents.payload);
+    expect(portalMatches.length).toBe(1);
+    expect(portalMatches[0].checked_in).toBe(true);
+    expect(portalMatches[0].session_id).toBe('sess_portal_1');
+
+    // Test 6: Parent portal sign-out over the public tunnel completes checkout
+    const resPortalSignout = await instance.fastify.inject({
+      method: 'POST',
+      url: '/api/parent/signout',
+      headers: { host: 'abcdef-random.trycloudflare.com' },
+      payload: { sessionId: 'sess_portal_1' },
+    });
+    expect(resPortalSignout.statusCode).toBe(200);
+    const signedOut = await instance.attendanceDao.getSessionById('sess_portal_1');
+    expect(signedOut?.student_time_out).toBeDefined();
+
+    // Test 7: Double sign-out is rejected (already checked out)
+    const resPortalSignoutAgain = await instance.fastify.inject({
+      method: 'POST',
+      url: '/api/parent/signout',
+      headers: { host: 'abcdef-random.trycloudflare.com' },
+      payload: { sessionId: 'sess_portal_1' },
+    });
+    expect(resPortalSignoutAgain.statusCode).toBe(409);
+
     await instance.db.close();
     if (fs.existsSync('./data/test_sec_scoping.sqlite')) {
       fs.unlinkSync('./data/test_sec_scoping.sqlite');
+    }
+  });
+
+  it('38. Atomic /api/check-in + streamlined /api/sync offline replay', { timeout: 15000 }, async () => {
+    const { createServer } = await import('../apps/local-server/src/server.js');
+    const instance = await createServer('./data/test_checkin.sqlite');
+
+    const student = await instance.studentDao.createStudent({
+      student_id: '10050',
+      student_name: 'Ava Chen',
+      parent1_phone: '+15551112222',
+    });
+
+    // 1. Check-in creates an attendance session with the walk-in class
+    const checkIn = await instance.fastify.inject({
+      method: 'POST',
+      url: '/api/check-in',
+      payload: { studentId: student.id, deviceId: 'TABLET_01' },
+    });
+    expect(checkIn.statusCode).toBe(200);
+    const checkInBody = JSON.parse(checkIn.payload);
+    expect(checkInBody.status).toBe('checked_in');
+    expect(checkInBody.student.id).toBe(student.id);
+    expect(checkInBody.session.timeIn).toBeDefined();
+
+    const session = await instance.attendanceDao.getActiveSessionForStudent(student.id);
+    expect(session).toBeDefined();
+    expect(session?.class_id).toBe('class_walkin');
+
+    // 2. Check-in again toggles to checkout with duration
+    const checkOut = await instance.fastify.inject({
+      method: 'POST',
+      url: '/api/check-in',
+      payload: { studentId: student.id, deviceId: 'TABLET_01' },
+    });
+    expect(checkOut.statusCode).toBe(200);
+    const checkOutBody = JSON.parse(checkOut.payload);
+    expect(checkOutBody.status).toBe('checked_out');
+    expect(checkOutBody.session.timeOut).toBeDefined();
+    expect(checkOutBody.session.duration).toBeGreaterThanOrEqual(0);
+
+    // 3. /api/attendance/today returns the session
+    const todayRes = await instance.fastify.inject({
+      method: 'GET',
+      url: '/api/attendance/today',
+    });
+    expect(todayRes.statusCode).toBe(200);
+    const today = JSON.parse(todayRes.payload);
+    expect(today.length).toBe(1);
+    expect(today[0].student_id).toBe(student.id);
+
+    // 4. Streamlined /api/sync replays offline queued events
+    const syncRes = await instance.fastify.inject({
+      method: 'POST',
+      url: '/api/sync',
+      payload: {
+        device_id: 'TABLET_01',
+        events: [
+          { id: 'evt_offline_1', studentId: student.id, timestamp: new Date().toISOString(), action: 'check_in' },
+        ],
+      },
+    });
+    expect(syncRes.statusCode).toBe(200);
+    const syncBody = JSON.parse(syncRes.payload);
+    expect(syncBody.success).toBe(true);
+    expect(syncBody.processed).toBe(1);
+
+    const activeAfterSync = await instance.attendanceDao.getActiveSessionForStudent(student.id);
+    expect(activeAfterSync).toBeDefined();
+
+    await instance.db.close();
+    if (fs.existsSync('./data/test_checkin.sqlite')) {
+      fs.unlinkSync('./data/test_checkin.sqlite');
     }
   });
 });

@@ -58,3 +58,6 @@ export const NOTIFICATION_PROVIDERS = {
 } as const;
 
 export type NotificationProvider = typeof NOTIFICATION_PROVIDERS[keyof typeof NOTIFICATION_PROVIDERS];
+
+/** Production default for the permanent hosted parent portal (Vercel). */
+export const DEFAULT_PORTAL_BASE_URL = 'https://kumon-siso.vercel.app';

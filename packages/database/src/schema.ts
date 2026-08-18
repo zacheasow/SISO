@@ -150,10 +150,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
 -- Indexes for high efficiency and filtering performance
 CREATE INDEX IF NOT EXISTS idx_students_qr ON students(qr_identifier);
 CREATE INDEX IF NOT EXISTS idx_students_sid ON students(student_id);
+CREATE INDEX IF NOT EXISTS idx_students_name ON students(student_name);
+CREATE INDEX IF NOT EXISTS idx_students_active ON students(is_active);
 CREATE INDEX IF NOT EXISTS idx_attendance_timein ON attendance_sessions(student_time_in);
 CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance_sessions(student_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_class ON attendance_sessions(class_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_timeout ON attendance_sessions(student_time_out);
+CREATE INDEX IF NOT EXISTS idx_attendance_dropoff ON attendance_sessions(dropoff_ack_status);
+CREATE INDEX IF NOT EXISTS idx_attendance_pickup ON attendance_sessions(pickup_ack_status);
 CREATE INDEX IF NOT EXISTS idx_events_session ON attendance_events(attendance_session_id);
 CREATE INDEX IF NOT EXISTS idx_events_idem ON attendance_events(idempotency_key);
 CREATE INDEX IF NOT EXISTS idx_tokens_hash ON secure_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_sms_status ON sms_queue(status);
+CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
 `;

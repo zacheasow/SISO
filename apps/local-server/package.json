@@ -12,7 +12,6 @@
     "@fastify/static": "^6.12.0",
     "@kumon-siso/database": "1.0.0",
     "@kumon-siso/import": "1.0.0",
-    "@kumon-siso/qr": "1.0.0",
     "@kumon-siso/shared": "1.0.0",
     "@kumon-siso/sms-adapters": "1.0.0",
     "@kumon-siso/sync": "1.0.0",
@@ -24,9 +23,14 @@
     "typescript": "^5.3.3"
   },
   "pkg": {
+    "scripts": "dist/**/*.js",
     "assets": [
-      "../../node_modules/sqlite3/lib/binding/**/*.node",
-      "../../node_modules/sqlite3/package.json"
+      "../../node_modules/sqlite3/build/Release/*.node",
+      "../../node_modules/sqlite3/package.json",
+      "../../node_modules/es-get-iterator/**/*",
+      "../../node_modules/has-symbols/**/*.js",
+      "../../node_modules/is-arguments/**/*.js",
+      "../../packages/**/dist/**/*.js"
     ]
   }
 }

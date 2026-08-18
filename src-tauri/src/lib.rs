@@ -25,15 +25,24 @@ pub fn run() {
             let app_data_str = app_data_dir.to_string_lossy().to_string();
             println!("[Kumon SISO] Database directory: {}", &app_data_str);
 
-            // Set DATABASE_DIR so the Fastify sidecar knows where to store SQLite data
-            std::env::set_var("DATABASE_DIR", &app_data_str);
+            // Resolve the resource directory so the sidecar can locate the
+            // bundled Check-In PWA static files (TAURI_RESOURCE_DIR).
+            let resource_dir = app
+                .path()
+                .resource_dir()
+                .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+            let resource_dir_str = resource_dir.to_string_lossy().to_string();
 
-            // Spawn the Fastify sidecar server
+            // Spawn the Fastify sidecar server, passing DATABASE_DIR (where the
+            // SQLite database lives) and TAURI_RESOURCE_DIR (where the bundled
+            // PWA assets live) as environment variables.
             let handle = app.handle().clone();
             let (mut rx, child) = handle
                 .shell()
                 .sidecar("kumon-siso-server")
                 .expect("failed to create sidecar command")
+                .env("DATABASE_DIR", &app_data_str)
+                .env("TAURI_RESOURCE_DIR", &resource_dir_str)
                 .spawn()
                 .expect("failed to spawn Fastify sidecar");
 
@@ -68,7 +77,8 @@ pub fn run() {
             // Kill the sidecar process when the app exits
             if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
                 let state = app_handle.state::<SidecarState>();
-                if let Some(child) = state.0.lock().unwrap().take() {
+                let mut guard = state.0.lock().unwrap();
+                if let Some(child) = guard.take() {
                     println!("[Kumon SISO] Shutting down Fastify sidecar...");
                     let _ = child.kill();
                 }

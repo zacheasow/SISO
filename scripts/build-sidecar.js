@@ -2,10 +2,14 @@
 
 /**
  * build-sidecar.js
- * 
+ *
  * Compiles the Fastify local-server into a standalone binary using @yao-pkg/pkg,
  * then copies it to src-tauri/binaries/ with the correct target-triple naming
  * that Tauri expects for sidecar resolution.
+ *
+ * Required native SQLite bindings (node_sqlite3.node) are embedded into the
+ * binary via pkg assets and also copied to src-tauri/bindings/ so they ship
+ * alongside the desktop app as a fallback.
  */
 
 const { execSync } = require('child_process');
@@ -14,6 +18,7 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const BIN_DIR = path.join(ROOT, 'src-tauri', 'binaries');
+const BINDINGS_DIR = path.join(ROOT, 'src-tauri', 'bindings');
 const RES_DIR = path.join(ROOT, 'src-tauri', 'resources');
 
 // Map Node.js arch/platform to Rust target triples
@@ -44,7 +49,13 @@ function getPkgTarget() {
   const platformMap = { win32: 'win', darwin: 'macos', linux: 'linux' };
   const archMap = { x64: 'x64', arm64: 'arm64' };
 
-  return `node20-${platformMap[platform]}-${archMap[arch]}`;
+  const pkgPlatform = platformMap[platform];
+  const pkgArch = archMap[arch];
+  if (!pkgPlatform || !pkgArch) {
+    throw new Error(`Unsupported platform: ${platform}-${arch}`);
+  }
+
+  return `node20-${pkgPlatform}-${pkgArch}`;
 }
 
 async function main() {
@@ -53,13 +64,14 @@ async function main() {
   const ext = process.platform === 'win32' ? '.exe' : '';
   const sidecarName = `kumon-siso-server-${targetTriple}${ext}`;
 
-  console.log(`\n=== Kumon SISO Sidecar Builder ===");
+  console.log(`\n=== Kumon SISO Sidecar Builder ===`);
   console.log(`Target triple: ${targetTriple}`);
   console.log(`pkg target:    ${pkgTarget}`);
   console.log(`Output:        ${sidecarName}\n`);
 
   // Ensure output directories exist
   fs.mkdirSync(BIN_DIR, { recursive: true });
+  fs.mkdirSync(BINDINGS_DIR, { recursive: true });
   fs.mkdirSync(RES_DIR, { recursive: true });
 
   // Step 1: Build all packages and the local-server TypeScript
@@ -76,7 +88,7 @@ async function main() {
     cwd: ROOT,
   });
 
-  // Step 3: Copy check-in-pwa dist to resources (sidecar will serve from here)
+  // Step 3: Copy check-in-pwa dist to resources (sidecar serves from here)
   const pwaDistSrc = path.join(ROOT, 'apps', 'check-in-pwa', 'dist');
   const pwaDistDest = path.join(RES_DIR, 'check-in-pwa');
   if (fs.existsSync(pwaDistDest)) {
@@ -89,27 +101,29 @@ async function main() {
   const entryPoint = path.join(ROOT, 'apps', 'local-server', 'dist', 'index.js');
   const outputPath = path.join(BIN_DIR, sidecarName);
 
-  console.log(`[4/4] Packaging sidecar with @yao-pkg/pkg...`);
+  console.log('[4/4] Packaging sidecar with @yao-pkg/pkg...');
 
-  // pkg configuration: include sqlite3 native binding as an asset
-  const pkgConfig = {
-    targets: [pkgTarget],
-    outputPath: outputPath,
-    assets: findSqliteBindings(),
-  };
-
-  const assetsArgs = pkgConfig.assets.map(a => `--assets "${a}"`).join(' ');
+  // Native sqlite3 bindings and transitive deps are embedded via the `pkg` field in
+  // apps/local-server/package.json (scripts/assets are resolved relative to that app dir).
+  // `--config` is required: pkg only reads the `pkg` field from package.json when the
+  // config is passed explicitly (an entry .js file otherwise makes pkg skip it).
+  // `--public-packages "*"` embeds every transitive package as plain sources so that
+  // dynamic / `exports`-field module resolution (e.g. es-get-iterator -> node.js) that
+  // pkg's static walker cannot reach still works at runtime.
+  const pkgConfig = path.join(ROOT, 'apps', 'local-server', 'package.json');
   execSync(
-    `npx --yes @yao-pkg/pkg "${entryPoint}" --target ${pkgTarget} --output "${outputPath}" ${assetsArgs}`,
+    `npx --yes @yao-pkg/pkg "${entryPoint}" --config "${pkgConfig}" --public-packages "*" --target ${pkgTarget} --output "${outputPath}"`,
     { stdio: 'inherit', cwd: ROOT }
   );
 
-  // Also copy the sqlite3 native .node file to resources as a fallback
-  const sqliteBindings = findSqliteNodeFile();
-  if (sqliteBindings) {
-    const destBinding = path.join(RES_DIR, 'node_sqlite3.node');
-    fs.copyFileSync(sqliteBindings, destBinding);
+  // Also copy the sqlite3 native .node file to src-tauri/bindings/ as a fallback
+  const sqliteNodeFile = findSqliteNodeFile();
+  if (sqliteNodeFile) {
+    const destBinding = path.join(BINDINGS_DIR, 'node_sqlite3.node');
+    fs.copyFileSync(sqliteNodeFile, destBinding);
     console.log(`Copied sqlite3 native binding to: ${destBinding}`);
+  } else {
+    console.warn('[warn] Could not locate sqlite3 native binding (.node) to copy to bindings/');
   }
 
   console.log(`\n✅ Sidecar binary created: ${outputPath}`);
@@ -130,24 +144,38 @@ function copyDirSync(src, dest) {
   }
 }
 
-/** Find sqlite3 native binding .node files for pkg assets */
-function findSqliteBindings() {
-  const bindingDir = path.join(ROOT, 'node_modules', 'sqlite3', 'lib', 'binding');
-  const assets = [];
-  if (fs.existsSync(bindingDir)) {
-    assets.push(path.join(bindingDir, '**', '*.node'));
+/** Locate the compiled sqlite3 native binding (.node file) for this platform */
+function findSqliteNodeFile() {
+  const candidates = [
+    // node-gyp output used by the sqlite3 npm package
+    path.join(ROOT, 'node_modules', 'sqlite3', 'build', 'Release', 'node_sqlite3.node'),
+    // prebuilt binaries from @mapbox/node-pre-gyp / node-pre-gyp
+    path.join(ROOT, 'node_modules', 'sqlite3', 'lib', 'binding'),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate) && candidate.endsWith('.node')) {
+      return candidate;
+    }
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+      const found = walkForNodeFile(candidate);
+      if (found) return found;
+    }
   }
-  return assets;
+  return null;
 }
 
-/** Find the actual .node native module file */
-function findSqliteNodeFile() {
-  const bindingDir = path.join(ROOT, 'node_modules', 'sqlite3', 'lib', 'binding');
-  if (!fs.existsSync(bindingDir)) return null;
-
-  for (const subdir of fs.readdirSync(bindingDir)) {
-    const nodeFile = path.join(bindingDir, subdir, 'node_sqlite3.node');
-    if (fs.existsSync(nodeFile)) return nodeFile;
+/** Depth-first search for a .node file under a directory */
+function walkForNodeFile(dir) {
+  if (!fs.existsSync(dir)) return null;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const found = walkForNodeFile(full);
+      if (found) return found;
+    } else if (entry.name.endsWith('.node')) {
+      return full;
+    }
   }
   return null;
 }

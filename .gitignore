@@ -1,0 +1,36 @@
+# Rust build targets & debug symbols
+src-tauri/target/
+**/*.pdb
+**/*.rlib
+src-tauri/gen/
+
+# Release installers & executables
+*.exe
+*.msi
+
+# Sidecar binaries & generated bundles
+src-tauri/binaries/
+src-tauri/bindings/
+src-tauri/resources/check-in-pwa/
+
+# Node & Bundles
+node_modules/
+**/dist/
+**/.vite/
+*.tsbuildinfo
+
+# SQLite runtime data & backups
+data/
+backups/
+export_packages/
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

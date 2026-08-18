@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-cli/schema.json",
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "Kumon SISO",
   "version": "1.0.0",
   "identifier": "com.kumon-siso.desktop",
@@ -10,10 +10,9 @@
     "beforeBuildCommand": "npm run build && npm run build:sidecar"
   },
   "app": {
-    "title": "Kumon SISO - Student Check-In & Pickup System",
     "windows": [
       {
-        "title": "Kumon SISO",
+        "title": "Kumon SISO - Student Check-In & Pickup System",
         "width": 1280,
         "height": 800,
         "minWidth": 900,
@@ -36,7 +35,8 @@
       "binaries/kumon-siso-server"
     ],
     "resources": [
-      "resources/**/*"
+      "resources/**/*",
+      "bindings/**/*"
     ]
   }
 }

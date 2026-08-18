@@ -150,6 +150,7 @@ export interface SyncResponse {
   success: boolean;
   processed_event_ids: string[];
   acknowledged_count: number;
+  processed: number;
   errors: Array<{ event_id: string; error: string }>;
   server_timestamp: string;
 }
@@ -157,8 +158,14 @@ export interface SyncResponse {
 export interface SystemConfig {
   cloudflare_tunnel_enabled: boolean;
   cloudflare_tunnel_url?: string;
+  cloudflare_tunnel_token?: string;
+  center_slug?: string;
+  relay_worker_url?: string;
+  portal_base_url?: string;
+  relay_secret?: string;
   notification_provider: 'WEB_PUSH' | 'DEV_OUTBOX';
   vapid_public_key?: string;
   vapid_private_key?: string;
   vapid_subject?: string;
+  onboarding_completed?: boolean;
 }

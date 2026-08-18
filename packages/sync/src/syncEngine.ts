@@ -48,10 +48,15 @@ export class SyncEngine {
             if (existingActive) {
               sessionId = existingActive.id;
             } else {
+              // No schedule validation — auto-use the walk-in class if a
+              // class_id is missing or refers to the pseudo walk-in id.
+              const classId = evt.class_id === 'class_walkin' || !evt.class_id
+                ? (await this.studentDao.ensureWalkinClass()).id
+                : evt.class_id;
               const newSession = await this.attendanceDao.createCheckinSession({
                 sessionId: evt.attendance_session_id,
                 studentId: evt.student_id,
-                classId: evt.class_id,
+                classId,
                 timeIn: evt.client_timestamp,
                 deviceId: evt.originating_device_id,
                 isOverride: evt.is_override,
@@ -168,6 +173,7 @@ export class SyncEngine {
       success: errors.length === 0,
       processed_event_ids: processedEventIds,
       acknowledged_count: processedEventIds.length,
+      processed: processedEventIds.length,
       errors,
       server_timestamp: new Date().toISOString(),
     };

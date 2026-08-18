@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/api/register", "destination": "/api/register.js" },
+    { "source": "/api/target", "destination": "/api/target.js" },
+    { "source": "/parent", "destination": "/parent.html" },
+    { "source": "/:center/parent", "destination": "/parent.html" },
+    { "source": "/:center/kiosk", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

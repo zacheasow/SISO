@@ -8,5 +8,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     target: 'es2020',
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        parent: 'parent.html',
+      },
+    },
   },
 });

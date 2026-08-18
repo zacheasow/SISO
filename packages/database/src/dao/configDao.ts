@@ -1,5 +1,5 @@
 import { Database } from '../db.js';
-import { SystemConfig } from '@kumon-siso/shared';
+import { SystemConfig, DEFAULT_PORTAL_BASE_URL } from '@kumon-siso/shared';
 
 export class ConfigDao {
   private cache = new Map<string, string>();
@@ -28,6 +28,12 @@ export class ConfigDao {
   async getConfig(): Promise<SystemConfig> {
     const cloudflareEnabled = (await this.getValue('cloudflare_tunnel_enabled', '0')) === '1';
     const cloudflareUrl = await this.getValue('cloudflare_tunnel_url', '');
+    const cloudflareToken = await this.getValue('cloudflare_tunnel_token', '');
+    const centerSlug = await this.getValue('center_slug', '');
+    const relayWorkerUrl = await this.getValue('relay_worker_url', '');
+    const portalBaseUrl = await this.getValue('portal_base_url', DEFAULT_PORTAL_BASE_URL);
+    const relaySecret = await this.getValue('relay_secret', '');
+    const onboardingCompleted = (await this.getValue('onboarding_completed', '0')) === '1';
     const notificationProvider = (await this.getValue('notification_provider', 'DEV_OUTBOX')) as any;
     const vapidPublicKey = await this.getValue('vapid_public_key', '');
     const vapidPrivateKey = await this.getValue('vapid_private_key', '');
@@ -36,6 +42,12 @@ export class ConfigDao {
     return {
       cloudflare_tunnel_enabled: cloudflareEnabled,
       cloudflare_tunnel_url: cloudflareUrl,
+      cloudflare_tunnel_token: cloudflareToken,
+      center_slug: centerSlug,
+      relay_worker_url: relayWorkerUrl,
+      portal_base_url: portalBaseUrl,
+      relay_secret: relaySecret,
+      onboarding_completed: onboardingCompleted,
       notification_provider: notificationProvider,
       vapid_public_key: vapidPublicKey,
       vapid_private_key: vapidPrivateKey,
@@ -49,6 +61,24 @@ export class ConfigDao {
     }
     if (partial.cloudflare_tunnel_url !== undefined) {
       await this.setValue('cloudflare_tunnel_url', partial.cloudflare_tunnel_url);
+    }
+    if (partial.cloudflare_tunnel_token !== undefined) {
+      await this.setValue('cloudflare_tunnel_token', partial.cloudflare_tunnel_token);
+    }
+    if (partial.center_slug !== undefined) {
+      await this.setValue('center_slug', partial.center_slug);
+    }
+    if (partial.relay_worker_url !== undefined) {
+      await this.setValue('relay_worker_url', partial.relay_worker_url);
+    }
+    if (partial.portal_base_url !== undefined) {
+      await this.setValue('portal_base_url', partial.portal_base_url);
+    }
+    if (partial.relay_secret !== undefined) {
+      await this.setValue('relay_secret', partial.relay_secret);
+    }
+    if (partial.onboarding_completed !== undefined) {
+      await this.setValue('onboarding_completed', partial.onboarding_completed ? '1' : '0');
     }
     if (partial.notification_provider !== undefined) {
       await this.setValue('notification_provider', partial.notification_provider);

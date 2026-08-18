@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Kumon SISO - Parent Web Portal</title>
+  <link rel="stylesheet" href="/src/style.css" />
+  <meta name="theme-color" content="#1E40AF" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kumon SISO" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header / Navbar -->
+    <header class="navbar">
+      <div class="brand">
+        <span class="logo-icon">K</span>
+        <h1>Parent Web Portal</h1>
+      </div>
+      <div class="nav-actions">
+        <button id="btn-refresh" class="btn btn-secondary nav-btn">
+          <span class="icon">Refresh</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+      <section class="scan-card">
+        <h2 class="card-title">Check My Child</h2>
+        <p class="subtitle">Save your child's name to check their status and sign them out.</p>
+
+        <div id="center-notice" class="center-notice" style="display:none">
+          This portal URL is missing its center link. Please open the exact URL from your center (it ends with <strong>/parent</strong> and includes your center name).
+        </div>
+
+        <!-- Add Child Form -->
+        <div class="portal-form">
+          <input type="text" id="input-first" placeholder="Child's First Name" autocomplete="given-name" />
+          <input type="text" id="input-last" placeholder="Last Name" autocomplete="family-name" />
+          <button id="btn-add" class="btn btn-primary">Add Child</button>
+        </div>
+
+        <!-- Saved Child Cards -->
+        <div id="profiles-list" class="student-grid">
+          <!-- Rendered dynamically -->
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer / Status Bar -->
+    <footer class="footer">
+      <div class="status-indicator">
+        <span id="conn-dot" class="dot dot-online"></span>
+        <span id="conn-status">Server Connected</span>
+      </div>
+      <div class="device-id-label">Powered by Kumon SISO</div>
+    </footer>
+  </div>
+  <script type="module" src="/src/parent.ts"></script>
+</body>
+</html>

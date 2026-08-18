@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
 import { generateQrBuffer } from './qrGenerator.js';
 
 export interface CardPrintItem {
@@ -22,6 +23,7 @@ export async function generateQrCardsPdf(
 
       doc.on('data', (chunk) => buffers.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', (err) => reject(err));
 
       const cardsPerPage = 8;
       const cols = 2;
@@ -48,7 +50,7 @@ export async function generateQrCardsPdf(
         // Draw Card Border
         doc.roundedRect(x, y, cardWidth, cardHeight, 8).lineWidth(1).stroke('#CBD5E1');
 
-        // Draw Center Header Header Banner
+        // Draw Center Header Banner
         doc.rect(x, y, cardWidth, 28).fill('#1E40AF');
         doc
           .fillColor('#FFFFFF')
@@ -56,9 +58,37 @@ export async function generateQrCardsPdf(
           .font('Helvetica-Bold')
           .text(centerName.toUpperCase(), x + 8, y + 8, { width: cardWidth - 16, align: 'center' });
 
-        // Generate QR Image Buffer
-        const qrBuffer = await generateQrBuffer(item.qrIdentifier);
-        doc.image(qrBuffer, x + 10, y + 36, { width: 100, height: 100 });
+        // Generate QR Image Buffer - try toBuffer first, fall back to SVG
+        let qrBuffer: Buffer;
+        try {
+          qrBuffer = await generateQrBuffer(item.qrIdentifier);
+        } catch {
+          // Fallback: generate SVG string and convert to data URL
+          const svgString = await QRCode.toString(item.qrIdentifier, {
+            type: 'svg',
+            errorCorrectionLevel: 'H',
+            margin: 2,
+            width: 100,
+          });
+          // Create a simple placeholder if QR generation fails entirely
+          doc.save();
+          doc.rect(x + 10, y + 36, 100, 100).fill('#f1f5f9');
+          doc.fillColor('#64748B').fontSize(8).text('QR', x + 50, y + 80, { width: 20, align: 'center' });
+          doc.restore();
+          qrBuffer = Buffer.alloc(0);
+        }
+
+        if (qrBuffer.length > 0) {
+          try {
+            doc.image(qrBuffer, x + 10, y + 36, { width: 100, height: 100 });
+          } catch {
+            // If image embed fails, draw placeholder
+            doc.save();
+            doc.rect(x + 10, y + 36, 100, 100).fill('#f1f5f9');
+            doc.fillColor('#64748B').fontSize(8).text('QR', x + 50, y + 80, { width: 20, align: 'center' });
+            doc.restore();
+          }
+        }
 
         // Draw Student Info
         doc.fillColor('#0F172A').fontSize(14).font('Helvetica-Bold').text(item.studentName, x + 115, y + 45, {

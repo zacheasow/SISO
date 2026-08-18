@@ -90,6 +90,14 @@ export class StudentDao {
     return (await this.db.get<ClassItem>('SELECT * FROM classes WHERE id = ?', [id]))!;
   }
 
+  async ensureWalkinClass(): Promise<ClassItem> {
+    const WALKIN_ID = 'class_walkin';
+    const existing = await this.db.get<ClassItem>('SELECT * FROM classes WHERE id = ?', [WALKIN_ID]);
+    if (existing) return existing;
+    await this.db.run('INSERT INTO classes (id, name, description) VALUES (?, ?, ?)', [WALKIN_ID, 'Walk-In', 'No schedule required']);
+    return (await this.db.get<ClassItem>('SELECT * FROM classes WHERE id = ?', [WALKIN_ID]))!;
+  }
+
   async getAllClasses(): Promise<ClassItem[]> {
     return this.db.all<ClassItem>('SELECT * FROM classes WHERE is_active = 1 ORDER BY name ASC');
   }

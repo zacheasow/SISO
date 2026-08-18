@@ -11,6 +11,13 @@ import {
 } from '@kumon-siso/shared';
 import { randomUUID } from 'node:crypto';
 
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 export class AttendanceDao {
   constructor(private db: Database) {}
 
@@ -36,8 +43,8 @@ export class AttendanceDao {
     );
   }
 
-  async getCurrentlyCheckedInStudents(): Promise<AttendanceSession[]> {
-    return this.db.all<AttendanceSession>(
+  async getCurrentlyCheckedInStudents(): Promise<Array<AttendanceSession & { duration_minutes: number | null; duration_text: string }>> {
+    const rows = await this.db.all<AttendanceSession>(
       `SELECT a.*, s.student_name, s.student_id as student_number, c.name as class_name
        FROM attendance_sessions a
        JOIN students s ON s.id = a.student_id
@@ -45,6 +52,12 @@ export class AttendanceDao {
        WHERE a.student_time_out IS NULL
        ORDER BY a.student_time_in DESC`
     );
+    const now = Date.now();
+    return rows.map((r) => {
+      const diffMs = now - new Date(r.student_time_in).getTime();
+      const duration_minutes = Math.max(0, Math.floor(diffMs / (1000 * 60)));
+      return { ...r, duration_minutes, duration_text: formatDuration(duration_minutes) };
+    });
   }
 
   async getPendingPickupRequests(): Promise<AttendanceSession[]> {
@@ -202,7 +215,7 @@ export class AttendanceDao {
     missingPickupAck?: boolean;
     missingCheckout?: boolean;
     overridesOnly?: boolean;
-  }): Promise<Array<AttendanceSession & { duration_minutes: number | null }>> {
+  }): Promise<Array<AttendanceSession & { duration_minutes: number | null; duration_text: string }>> {
     let sql = `
       SELECT a.*, s.student_name, s.student_id as student_number, c.name as class_name
       FROM attendance_sessions a
@@ -251,10 +264,21 @@ export class AttendanceDao {
         const diffMs = new Date(r.student_time_out).getTime() - new Date(r.student_time_in).getTime();
         duration_minutes = Math.max(0, Math.floor(diffMs / (1000 * 60)));
       }
+      const duration_text = duration_minutes !== null ? formatDuration(duration_minutes) : 'In Progress';
       return {
         ...r,
         duration_minutes,
+        duration_text,
       };
     });
+  }
+
+  async getAttendanceToday(): Promise<Array<AttendanceSession & { duration_minutes: number | null; duration_text: string }>> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    return this.getAttendanceHistory({ startDate: startOfDay.toISOString(), endDate: endOfDay.toISOString() });
   }
 }

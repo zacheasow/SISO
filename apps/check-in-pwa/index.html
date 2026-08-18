@@ -6,19 +6,27 @@
   <title>Kumon SISO - Student Check-In & Pickup</title>
   <link rel="stylesheet" href="/src/style.css" />
   <meta name="theme-color" content="#1E40AF" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kumon SISO" />
 </head>
 <body>
   <div id="app">
     <!-- Header / Navbar -->
     <header class="navbar">
       <div class="brand">
-        <span class="logo-icon">✓</span>
+        <span class="logo-icon">K</span>
         <h1 id="center-title">Community Learning Center</h1>
       </div>
       <div class="nav-actions">
         <button id="btn-sync" class="btn btn-secondary nav-btn">
-          <span class="icon">🔄</span>
+          <span class="icon">Sync</span>
           <span id="sync-text">Sync (0)</span>
+        </button>
+        <button id="btn-debug" class="btn btn-secondary nav-btn" title="Debug / Offline Queue">
+          <span class="icon">•••</span>
         </button>
         <button id="btn-mode-toggle" class="btn btn-primary nav-btn">
           <span id="mode-label">Staff Checkout</span>
@@ -41,6 +49,15 @@
               <div class="target-box"></div>
               <p class="overlay-hint">Position QR Code inside box</p>
             </div>
+          </div>
+
+          <!-- Camera Notice (shown when camera unavailable) -->
+          <div id="camera-notice" class="hidden" style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; color: #92400e; font-size: 0.9rem;">
+            <span id="camera-notice-text"></span>
+            <button id="btn-retry-camera" class="btn btn-primary" style="margin-top: 0.5rem; font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+              Retry Camera Permission
+            </button>
+            <span style="display: block; margin-top: 0.4rem; font-size: 0.8rem; color: #64748b;">Or use the manual name search below.</span>
           </div>
 
           <!-- Manual Search Input -->
@@ -75,15 +92,8 @@
           <div class="status-badge error-badge">⚠️</div>
           <h2 id="error-title">Check-in Issue</h2>
           <p id="error-message">No active class scheduled right now.</p>
-          <div id="override-form" class="override-form">
-            <label for="override-pin">Staff PIN Required:</label>
-            <input type="password" id="override-pin" maxlength="8" placeholder="Enter Staff PIN" />
-            <label for="override-reason">Reason for Override:</label>
-            <input type="text" id="override-reason" placeholder="e.g. Schedule adjustment" />
-            <div class="modal-actions">
-              <button id="btn-cancel-override" class="btn btn-secondary">Cancel</button>
-              <button id="btn-confirm-override" class="btn btn-danger">Confirm Override</button>
-            </div>
+          <div class="modal-actions">
+            <button id="btn-cancel-override" class="btn btn-secondary">Dismiss</button>
           </div>
         </div>
       </div>
@@ -111,6 +121,27 @@
       </div>
       <div class="device-id-label">Device: <span id="device-name-display">Tablet Checkin</span></div>
     </footer>
+
+    <!-- Offline Saved Banner (amber) -->
+    <div id="offline-banner" class="offline-banner hidden">
+      <span>📴 Saved Offline — Will sync automatically on reconnect</span>
+      <button id="btn-banner-dismiss" class="btn btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Dismiss</button>
+    </div>
+
+    <!-- Debug / Status Drawer -->
+    <div id="debug-drawer" class="debug-drawer hidden">
+      <div class="debug-drawer-header">
+        <strong>Offline Queue</strong>
+        <button id="btn-close-debug" class="btn btn-secondary" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">Close</button>
+      </div>
+      <div class="debug-drawer-body">
+        <p class="subtitle">Pending sync events: <span id="debug-queue-count">0</span></p>
+        <div class="debug-drawer-actions">
+          <button id="btn-retry-sync" class="btn btn-primary">Retry Sync</button>
+          <button id="btn-clear-queue" class="btn btn-secondary btn-danger">Clear Offline Queue</button>
+        </div>
+      </div>
+    </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

@@ -272,3 +272,51 @@ tr:hover {
 .wizard-step-dot.active {
   background: var(--primary);
 }
+
+/* Parent Web Portal print poster */
+.print-area {
+  display: none;
+}
+
+@media print {
+  body {
+    overflow: visible;
+    background: #ffffff;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .page-header,
+  .print-area + .table-container {
+    display: none !important;
+  }
+
+  .main-content {
+    overflow: visible;
+    padding: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0.5rem;
+  }
+
+  .print-area .portal-card {
+    border: none;
+  }
+}
