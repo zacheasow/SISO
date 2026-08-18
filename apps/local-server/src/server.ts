@@ -58,6 +58,18 @@ export async function createServer(dbPath = './data/sqlite.db') {
   const syncEngine = new SyncEngine(db);
   const tunnelManager = new TunnelManager(configDao, 3000);
 
+  // Resolve the center slug from the DB when it's not yet in config so the
+  // relay registration can always proceed (e.g. onboarding saved the center
+  // info but the slug config write failed or was done by an older build).
+  tunnelManager.setSlugFallback(async () => {
+    try {
+      const center = await centerDao.getCenterInfo();
+      return center && center.center_name ? slugify(center.center_name) : '';
+    } catch {
+      return '';
+    }
+  });
+
   // Security Scoping Hook: Block administrative endpoints over public tunnel domain
   fastify.addHook('onRequest', async (request, reply) => {
     const host = request.headers.host || '';
@@ -100,6 +112,19 @@ export async function createServer(dbPath = './data/sqlite.db') {
   // configuration. Skipped while running the vitest suite.
   if (process.env.VITEST !== 'true') {
     tunnelManager.ensureActive().catch((err) => console.warn('Tunnel boot error:', err));
+  }
+
+  // Heartbeat: re-register the active tunnel URL with the Vercel relay every
+  // 45s. Vercel serverless functions are ephemeral (in-memory store is lost on
+  // cold start), so the desktop must keep the registration warm while running.
+  if (process.env.VITEST !== 'true') {
+    const heartbeat = setInterval(() => {
+      const url = tunnelManager.getCurrentUrl();
+      if (url) {
+        tunnelManager.registerWithRelay(url).catch((err) => console.warn('[TunnelManager] Relay heartbeat failed:', err?.message || err));
+      }
+    }, 45000);
+    heartbeat.unref();
   }
 
   // Register static assets for the Check-In PWA so tablets on the local Wi-Fi

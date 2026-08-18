@@ -269,6 +269,19 @@ async function handleQrScan(qrValue: string) {
       return;
     }
 
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      // The relay returned an HTML page (e.g. the SPA fallback) instead of a
+      // real API response — the center computer's tunnel could not be reached.
+      const cached = await findCachedStudentByQr(cleaned);
+      if (cached) {
+        await performCheckin(cached, 'QR code');
+        return;
+      }
+      showError('Center Computer Unreachable', 'Could not reach the main computer through the relay. Make sure the Kumon SISO app is running on the center computer.');
+      return;
+    }
+
     const data = await res.json();
     currentScannedStudent = data.student;
     if (data.student) {
@@ -283,7 +296,7 @@ async function handleQrScan(qrValue: string) {
     if (cached) {
       await performCheckin(cached, 'QR code');
     } else {
-      showError('Offline Check-In', 'Could not reach main computer and no cached roster matches this QR code.');
+      showError('Center Computer Unreachable', 'Could not reach the main computer. If this is the first scan today, verify the Kumon SISO app is running on the center computer, then try again.');
     }
   }
 }

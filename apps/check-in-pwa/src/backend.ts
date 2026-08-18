@@ -14,6 +14,8 @@
  */
 const TUNNEL_HOSTS = /(\.trycloudflare\.com|\.cfargotunnel\.com|\.tunnel\.cloudflared\.com)$/;
 
+const LAST_TUNNEL_KEY = 'kumon_siso_last_tunnel_url';
+
 let centerSlug = '';
 let backendBase = ''; // '' = same-origin, otherwise resolved tunnel origin
 let backendResolved = false;
@@ -41,6 +43,23 @@ export function isHostedOrigin(): boolean {
   return !isLocalHost(host) && !TUNNEL_HOSTS.test(host);
 }
 
+/** Cache the last-known-good tunnel so a brief relay cold start can't break the kiosk. */
+function cacheTunnelUrl(url: string): void {
+  try {
+    localStorage.setItem(LAST_TUNNEL_KEY, url);
+  } catch {
+    // storage unavailable — ignore
+  }
+}
+
+function readCachedTunnelUrl(): string {
+  try {
+    return localStorage.getItem(LAST_TUNNEL_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
 async function resolveBackend(): Promise<string> {
   if (!isHostedOrigin()) return '';
 
@@ -54,11 +73,18 @@ async function resolveBackend(): Promise<string> {
     clearTimeout(timeout);
     if (res.ok) {
       const data = await res.json();
-      return (data.targetUrl || '').replace(/\/+$/, '');
+      const target = (data.targetUrl || '').replace(/\/+$/, '');
+      if (target) cacheTunnelUrl(target);
+      return target;
     }
   } catch {
-    // fall through to same-origin
+    // fall through to cached tunnel below
   }
+
+  // Relay temporarily unreachable or unregistered — reuse the last-known tunnel
+  // URL so an already-paired tablet keeps working even during a Vercel cold start.
+  const cached = readCachedTunnelUrl();
+  if (cached) return cached;
 
   return '';
 }

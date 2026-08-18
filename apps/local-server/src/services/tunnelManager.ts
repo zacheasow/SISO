@@ -74,12 +74,20 @@ export class TunnelManager {
   private isStarting = false;
   private startPromise: Promise<string | null> | null = null;
 
+  /** Fallback that resolves the center slug when the config value is empty. */
+  private slugFallback: (() => Promise<string>) | null = null;
+
   constructor(private configDao: ConfigDao, private localPort = 3000) {
     // Ensure clean process cleanup on node process exit / crash
     const cleanup = () => this.stop();
     process.on('exit', cleanup);
     process.on('SIGINT', cleanup);
     process.on('SIGTERM', cleanup);
+  }
+
+  /** Inject a resolver used when center_slug is not yet persisted to config. */
+  setSlugFallback(fn: (() => Promise<string>) | null): void {
+    this.slugFallback = fn;
   }
 
   getCurrentUrl(): string | null {
@@ -95,15 +103,31 @@ export class TunnelManager {
    */
   async registerWithRelay(tunnelUrl: string): Promise<void> {
     try {
-      const [relayWorkerUrl, centerSlug, relaySecret, portalBaseUrl] = await Promise.all([
-        this.configDao.getValue('relay_worker_url', ''),
+      const [configuredSlug, relayWorkerUrl, relaySecret, portalBaseUrl] = await Promise.all([
         this.configDao.getValue('center_slug', ''),
+        this.configDao.getValue('relay_worker_url', ''),
         this.configDao.getValue('relay_secret', ''),
         this.configDao.getValue('portal_base_url', DEFAULT_PORTAL_BASE_URL),
       ]);
+      let centerSlug = configuredSlug;
+      if (!centerSlug && this.slugFallback) {
+        try {
+          centerSlug = await this.slugFallback();
+        } catch {
+          // ignore fallback failure
+        }
+      }
       if (!centerSlug) {
         console.warn('[TunnelManager] Relay handshake skipped — center_slug not configured.');
         return;
+      }
+      // Persist the resolved slug so subsequent registrations use the same value.
+      if (!configuredSlug && centerSlug) {
+        try {
+          await this.configDao.setValue('center_slug', centerSlug);
+        } catch {
+          // best-effort persistence
+        }
       }
 
       const endpoints = new Set<string>();
