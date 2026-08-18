@@ -115,16 +115,11 @@ export async function createServer(dbPath = './data/sqlite.db') {
   }
 
   // Heartbeat: re-register the active tunnel URL with the Vercel relay every
-  // 45s. Vercel serverless functions are ephemeral (in-memory store is lost on
-  // cold start), so the desktop must keep the registration warm while running.
+  // 15s (managed inside TunnelManager). Vercel serverless functions are
+  // ephemeral (in-memory store is lost on cold start), so the desktop must keep
+  // the registration warm while running.
   if (process.env.VITEST !== 'true') {
-    const heartbeat = setInterval(() => {
-      const url = tunnelManager.getCurrentUrl();
-      if (url) {
-        tunnelManager.registerWithRelay(url).catch((err) => console.warn('[TunnelManager] Relay heartbeat failed:', err?.message || err));
-      }
-    }, 45000);
-    heartbeat.unref();
+    tunnelManager.startHeartbeat();
   }
 
   // Register static assets for the Check-In PWA so tablets on the local Wi-Fi

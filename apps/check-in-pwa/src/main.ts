@@ -1,5 +1,5 @@
 import { QRScanManager } from './scanner.js';
-import { apiFetch, apiUrl, getCenterSlug } from './backend.js';
+import { apiFetch, apiUrl, getCenterSlug, resetBackend } from './backend.js';
 import {
   getQueuedEvents,
   enqueueEvent,
@@ -17,6 +17,7 @@ let scanManager: QRScanManager | null = null;
 let currentView = 'checkin';
 let currentScannedStudent: any = null;
 let consecutiveFailures = 0;
+let lastQrValue = '';
 
 // DOM Elements
 const viewCheckin = document.getElementById('view-checkin')!;
@@ -42,6 +43,7 @@ const modalError = document.getElementById('modal-error')!;
 const errorTitle = document.getElementById('error-title')!;
 const errorMessage = document.getElementById('error-message')!;
 const btnCancelOverride = document.getElementById('btn-cancel-override')!;
+const btnRetryConnection = document.getElementById('btn-retry-connection')!;
 
 const offlineBanner = document.getElementById('offline-banner')!;
 const btnBannerDismiss = document.getElementById('btn-banner-dismiss')!;
@@ -111,6 +113,21 @@ async function init() {
 
   btnCancelOverride.addEventListener('click', () => {
     modalError.classList.add('hidden');
+  });
+
+  // "Tap to Retry Connection" — re-resolve the relay target and retry the last
+  // action once the center's tunnel comes back online.
+  btnRetryConnection.addEventListener('click', async () => {
+    modalError.classList.add('hidden');
+    btnRetryConnection.classList.add('hidden');
+    resetBackend();
+    if (lastQrValue) {
+      const value = lastQrValue;
+      lastQrValue = '';
+      await handleQrScan(value);
+    } else {
+      await checkServerHealth();
+    }
   });
 
   // Camera retry button
@@ -255,6 +272,7 @@ async function hideOfflineBannerIfEmpty() {
 async function handleQrScan(qrValue: string) {
   const cleaned = qrValue.trim();
   console.log('[QR Scan] Raw:', qrValue, 'Cleaned:', cleaned);
+  lastQrValue = cleaned;
   try {
     const res = await apiFetch(`/api/students/qr-lookup/${encodeURIComponent(cleaned)}`);
     if (!res.ok) {
@@ -278,7 +296,7 @@ async function handleQrScan(qrValue: string) {
         await performCheckin(cached, 'QR code');
         return;
       }
-      showError('Center Computer Unreachable', 'Could not reach the main computer through the relay. Make sure the Kumon SISO app is running on the center computer.');
+      showError('Center Computer Unreachable', 'Could not reach the main computer through the relay. Make sure the Kumon SISO app is running on the center computer, then tap Retry.', true);
       return;
     }
 
@@ -296,7 +314,7 @@ async function handleQrScan(qrValue: string) {
     if (cached) {
       await performCheckin(cached, 'QR code');
     } else {
-      showError('Center Computer Unreachable', 'Could not reach the main computer. If this is the first scan today, verify the Kumon SISO app is running on the center computer, then try again.');
+      showError('Center Computer Unreachable', 'Could not reach the main computer. If this is the first scan today, verify the Kumon SISO app is running on the center computer, then tap Retry.', true);
     }
   }
 }
@@ -350,9 +368,10 @@ async function handleLiveSearch() {
   await handleManualSearch();
 }
 
-function showError(title: string, msg: string) {
+function showError(title: string, msg: string, showRetry = false) {
   errorTitle.textContent = title;
   errorMessage.textContent = msg;
+  btnRetryConnection.classList.toggle('hidden', !showRetry);
   modalError.classList.remove('hidden');
 }
 

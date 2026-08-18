@@ -21,6 +21,11 @@ function corsHeaders(methods) {
 
 const MEMORY = new Map();
 
+/** Normalize a center slug so lookups are case-insensitive and whitespace-safe. */
+function normalizeSlug(value) {
+  return (value || '').toString().toLowerCase().trim();
+}
+
 function useUpstash() {
   return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
@@ -62,7 +67,7 @@ function isStale(raw) {
 }
 
 async function setTarget(centerSlug, targetUrl) {
-  const key = `center:${centerSlug}`;
+  const key = `center:${normalizeSlug(centerSlug)}`;
   const value = JSON.stringify({ targetUrl, updatedAt: new Date().toISOString() });
   if (useUpstash()) {
     await upstashSet(key, value);
@@ -72,7 +77,7 @@ async function setTarget(centerSlug, targetUrl) {
 }
 
 async function getTarget(centerSlug) {
-  const key = `center:${centerSlug}`;
+  const key = `center:${normalizeSlug(centerSlug)}`;
   let raw;
   if (useUpstash()) {
     raw = await upstashGet(key);
@@ -101,17 +106,29 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'GET') {
-    const center = typeof req.query.center === 'string' ? req.query.center.trim() : '';
+    const center = normalizeSlug(req.query && req.query.center);
     if (!center) {
-      json(res, 400, { error: 'center query parameter is required' }, methods);
+      json(res, 200, {
+        success: false,
+        error: 'missing_center',
+        center: '',
+        serverTimestamp: Date.now(),
+      }, methods);
       return;
     }
     const targetUrl = await getTarget(center);
     if (!targetUrl) {
-      json(res, 404, { error: `No registered target for center: ${center}` }, methods);
+      // Return 200 (not 404) so the client can render a clear debug status
+      // instead of a hard failure it can't distinguish from a network error.
+      json(res, 200, {
+        success: false,
+        error: 'target_not_registered',
+        center,
+        serverTimestamp: Date.now(),
+      }, methods);
       return;
     }
-    json(res, 200, { targetUrl }, methods);
+    json(res, 200, { success: true, targetUrl }, methods);
     return;
   }
 
@@ -140,14 +157,15 @@ export default async function handler(req, res) {
       }
     }
     const normalized = targetUrl.replace(/\/+$/, '');
-    await setTarget(centerSlug, normalized);
+    const center = normalizeSlug(centerSlug);
+    await setTarget(center, normalized);
     const proto = req.headers['x-forwarded-proto'] || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host;
     json(res, 200, {
       success: true,
-      centerSlug,
+      centerSlug: center,
       targetUrl: normalized,
-      relayUrl: `${proto}://${host}/${centerSlug}`,
+      relayUrl: `${proto}://${host}/${center}`,
       registeredAt: new Date().toISOString(),
     }, methods);
     return;

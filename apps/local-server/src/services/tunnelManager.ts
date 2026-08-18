@@ -77,12 +77,33 @@ export class TunnelManager {
   /** Fallback that resolves the center slug when the config value is empty. */
   private slugFallback: (() => Promise<string>) | null = null;
 
+  /** 15-second re-registration timer keeping the relay target fresh. */
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(private configDao: ConfigDao, private localPort = 3000) {
     // Ensure clean process cleanup on node process exit / crash
     const cleanup = () => this.stop();
     process.on('exit', cleanup);
     process.on('SIGINT', cleanup);
     process.on('SIGTERM', cleanup);
+  }
+
+  /**
+   * Start (or restart) a 15-second heartbeat that continuously re-registers the
+   * active tunnel URL with the Vercel relay so serverless cold starts always
+   * have a fresh target. Skips heartbeat ticks while no tunnel is active.
+   */
+  startHeartbeat(): void {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = setInterval(() => {
+      const url = this.getCurrentUrl();
+      if (url) {
+        this.registerWithRelay(url).catch((err) =>
+          console.warn(`[Relay Error] ${err?.message || err}`),
+        );
+      }
+    }, 15000);
+    this.heartbeatTimer.unref();
   }
 
   /** Inject a resolver used when center_slug is not yet persisted to config. */
@@ -159,13 +180,13 @@ export class TunnelManager {
           clearTimeout(timeout);
 
           if (!res.ok) {
-            console.warn(`[TunnelManager] Relay registration (${endpoint}) returned ${res.status}: ${await res.text().catch(() => '')}`);
+            console.warn(`[Relay Error] registration rejected (${res.status}) for ${endpoint}: ${await res.text().catch(() => '')}`);
             continue;
           }
           const body = await res.json().catch(() => ({}));
-          console.log(`[TunnelManager] Relay registered with ${endpoint}: ${body.relayUrl || 'ok'}`);
+          console.log(`[Relay] Heartbeat registered target: ${tunnelUrl}`);
         } catch (err: any) {
-          console.warn(`[TunnelManager] Relay handshake error for ${endpoint}:`, err?.message || err);
+          console.warn(`[Relay Error] ${err?.message || err}`);
         }
       }
     } catch (err: any) {
@@ -381,6 +402,10 @@ export class TunnelManager {
   }
 
   stop(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
     if (this.process) {
       try {
         if (process.platform === 'win32') {

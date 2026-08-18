@@ -66,27 +66,52 @@ async function resolveBackend(): Promise<string> {
   const slug = getCenterSlug();
   if (!slug) return '';
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
-    const res = await fetch(`/api/target?center=${encodeURIComponent(slug)}`, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = await res.json();
-      const target = (data.targetUrl || '').replace(/\/+$/, '');
-      if (target) cacheTunnelUrl(target);
-      return target;
+  // Query /api/target up to 3 times with exponential backoff before declaring
+  // the center unreachable — Vercel lambdas cold-start and may need a warm-up.
+  const attempts = 3;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(`/api/target?center=${encodeURIComponent(slug)}`, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.targetUrl) {
+          const target = data.targetUrl.replace(/\/+$/, '');
+          cacheTunnelUrl(target);
+          return target;
+        }
+        // success:false (e.g. target_not_registered) — retry a couple times, a
+        // fresh registration may land from the desktop heartbeat any moment.
+      }
+    } catch {
+      // network error — retry below
     }
-  } catch {
-    // fall through to cached tunnel below
+    if (attempt < attempts) {
+      await new Promise((r) => setTimeout(r, 300 * attempt));
+    }
   }
 
   // Relay temporarily unreachable or unregistered — reuse the last-known tunnel
   // URL so an already-paired tablet keeps working even during a Vercel cold start.
   const cached = readCachedTunnelUrl();
-  if (cached) return cached;
+  if (cached && await isTunnelHealthy(cached)) return cached;
 
   return '';
+}
+
+/** Verify a cached tunnel URL is actually alive before falling back to it. */
+async function isTunnelHealthy(base: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(`${base}/api/health`, { signal: controller.signal });
+    clearTimeout(timeout);
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -117,4 +142,15 @@ export async function apiUrl(path: string): Promise<string> {
 /** fetch() helper that transparently dispatches to the resolved backend. */
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(await apiUrl(path), init);
+}
+
+/**
+ * Clear the cached backend resolution so the next getBackendBase() re-resolves
+ * the relay target. Used by the "Tap to Retry Connection" flow after the center
+ * tunnel comes back online.
+ */
+export function resetBackend(): void {
+  backendResolved = false;
+  backendBase = '';
+  backendPromise = null;
 }
